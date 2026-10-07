@@ -28,6 +28,7 @@ APlayerCharacter::APlayerCharacter()
 void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	BoomBaseLocation = CameraBoom->GetRelativeLocation();
 	UpdateMovementSpeed();
 }
 
@@ -40,6 +41,10 @@ void APlayerCharacter::Tick(float DeltaSeconds)
 	
 	CameraBoom->TargetArmLength = FMath::FInterpTo(CameraBoom->TargetArmLength, TargetLength, DeltaSeconds, CameraInterpSpeed);
 	CameraBoom->SocketOffset = FMath::VInterpTo(CameraBoom->SocketOffset, TargetOffset, DeltaSeconds, CameraInterpSpeed);
+	
+	// Smooth crouch camera
+	CrouchCameraOffset = FMath::FInterpTo(CrouchCameraOffset, 0.f, DeltaSeconds, CrouchCameraInterpSpeed);
+	CameraBoom->SetRelativeLocation(BoomBaseLocation + FVector(0.f, 0.f, CrouchCameraOffset));
 }
 
 void APlayerCharacter::NotifyControllerChanged()
@@ -61,7 +66,7 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	
 	UEnhancedInputComponent* Input = CastChecked<UEnhancedInputComponent>(PlayerInputComponent);
 	
-	Input->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+	Input->BindAction(JumpAction, ETriggerEvent::Started, this, &APlayerCharacter::JumpPressed);
 	Input->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 	
 	Input->BindAction(MoveAction, ETriggerEvent::Triggered, this, &APlayerCharacter::Move);
@@ -88,11 +93,31 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	{
 		Input->BindAction(EquipAction, ETriggerEvent::Started, this, &APlayerCharacter::EquipPressed);
 	}
+	
+	if (CrouchAction)
+	{
+		Input->BindAction(CrouchAction, ETriggerEvent::Started, this, &APlayerCharacter::CrouchPressed);
+	}
 }
 
 void APlayerCharacter::SetAiming(bool bNewAiming)
 {
 	Super::SetAiming(bNewAiming);
+}
+
+void APlayerCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	Super::OnStartCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	
+	CrouchCameraOffset += ScaledHalfHeightAdjust;
+}
+
+void APlayerCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
+{
+	Super::OnEndCrouch(HalfHeightAdjust, ScaledHalfHeightAdjust);
+	
+	CrouchCameraOffset -= ScaledHalfHeightAdjust;
+
 }
 
 void APlayerCharacter::Move(const FInputActionValue& Value)
@@ -143,4 +168,20 @@ void APlayerCharacter::SprintCompleted()
 void APlayerCharacter::EquipPressed()
 {
 	ToggleArmed();
+}
+
+void APlayerCharacter::CrouchPressed()
+{
+	ToggleCrouch();
+}
+
+void APlayerCharacter::JumpPressed()
+{
+	if (GetCharacterMovement()->bWantsToCrouch)
+	{
+		SetCrouching(false);
+		return;
+	}
+	
+	Jump();
 }

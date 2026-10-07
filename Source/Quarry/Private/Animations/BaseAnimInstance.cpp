@@ -44,15 +44,13 @@ void UBaseAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	const bool bHasAcceleration = !MovementComponent->GetCurrentAcceleration().IsNearlyZero();
 	bShouldMove = GroundSpeed > 3.0f && bHasAcceleration;
 	bIsFalling = MovementComponent->IsFalling();
+	bIsCrouching = Character->IsCrouching();
 	
 	Direction = UKismetAnimationLibrary::CalculateDirection(Velocity, Character->GetActorRotation());
 	
 	bIsAiming = Character->IsAiming();
 	bIsArmed = Character->IsArmed();
 	
-	// Fade out the main rifle arms while in the air, so the jump state's arms show
-	const float TargetWeight = bIsFalling ? 0.f : 1.f;
-	RifleUpperBodyWeight = FMath::FInterpTo(RifleUpperBodyWeight, TargetWeight, DeltaSeconds, 10.f);
 	
 	const FRotator Delta = (Character->GetBaseAimRotation() - Character->GetActorRotation()).GetNormalized();
 	AimPitch = Delta.Pitch;
@@ -63,11 +61,7 @@ void UBaseAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	{
 		AWeapon* Weapon = Character->GetEquippedWeapon();
 		UStaticMeshComponent* WeaponMesh = Weapon ? Weapon->GetWeaponMesh() : nullptr;
-
-		if (WeaponMesh && !WeaponMesh->DoesSocketExist(TEXT("LeftHandSocket")) && GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::Red, TEXT("LeftHandSocket NOT found on weapon mesh"));
-		}
+		
 		
 		if (WeaponMesh && WeaponMesh->DoesSocketExist(TEXT("LeftHandSocket")))
 		{
@@ -86,28 +80,6 @@ void UBaseAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 			const FTransform& MeshToWorld = CharMesh->GetComponentTransform();
 			LeftHandIKLocation = MeshToWorld.InverseTransformPosition(WristWorld.GetLocation());
 			LeftHandIKRotation = MeshToWorld.InverseTransformRotation(WristWorld.GetRotation()).Rotator();
-		}
-	}
-	
-	// ---- TEMP DEBUG ----
-	if (bIsArmed && GEngine)
-	{
-		AWeapon* W = Character->GetEquippedWeapon();
-		UStaticMeshComponent* WM = W ? W->GetWeaponMesh() : nullptr;
-		const bool bHasSocket = WM && WM->DoesSocketExist(TEXT("LeftHandSocket"));
-
-		const FString Msg = FString::Printf(TEXT("Weapon: %s | Mesh: %s | Socket: %s | IK: %s"),
-			W ? *W->GetName() : TEXT("NULL"),
-			(WM && WM->GetStaticMesh()) ? *WM->GetStaticMesh()->GetName() : TEXT("NULL"),
-			bHasSocket ? TEXT("yes") : TEXT("NO"),
-			*LeftHandIKTransform.GetLocation().ToString());
-
-		GEngine->AddOnScreenDebugMessage(2, 0.f, FColor::Yellow, Msg);
-
-		if (bHasSocket)
-		{
-			DrawDebugSphere(Character->GetWorld(),
-				WM->GetSocketLocation(TEXT("LeftHandSocket")), 5.f, 8, FColor::Green);
 		}
 	}
 }

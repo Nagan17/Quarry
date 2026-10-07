@@ -25,13 +25,15 @@ class QUARRY_API APlayerCharacter : public ABaseCharacter
 public:
 	APlayerCharacter();
 	
-	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	
 protected:
+	virtual void BeginPlay() override;
 	virtual void NotifyControllerChanged() override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void SetAiming(bool bNewAiming) override;
+	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	
 	//Input Handler
 	void Move(const FInputActionValue& Value);
@@ -42,6 +44,8 @@ protected:
 	void SprintStarted();
 	void SprintCompleted();
 	void EquipPressed();
+	void CrouchPressed();
+	void JumpPressed();
 	
 	//Camera
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
@@ -61,6 +65,12 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Camera")
 	float CameraInterpSpeed = 10.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Camera")
+	float CrouchCameraInterpSpeed = 8.f;
+
+	float CrouchCameraOffset = 0.f;
+	FVector BoomBaseLocation = FVector::ZeroVector;
 	
 	//Input Asset
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
@@ -86,4 +96,7 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> EquipAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> CrouchAction;
 };

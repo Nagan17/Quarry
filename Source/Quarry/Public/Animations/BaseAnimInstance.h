@@ -46,6 +46,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Locomotion")
 	float Direction = 0.f;
 	
+	UPROPERTY(BlueprintReadOnly, Category = "Locomotion")
+	bool bIsCrouching = false;
+	
 	//Combat
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	bool bIsAiming = false;
@@ -58,9 +61,6 @@ protected:
  
 	UPROPERTY(BlueprintReadOnly, Category = "Combat")
 	float AimYaw = 0.f;
-	
-	UPROPERTY(BlueprintReadOnly, Category = "Combat")
-	float RifleUpperBodyWeight = 1.f;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Combat|IK")
 	FTransform LeftHandIKTransform;

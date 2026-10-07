@@ -33,8 +33,34 @@ ABaseCharacter::ABaseCharacter()
 
 void ABaseCharacter::SetSprinting(bool bNewSprinting)
 {
+	if (bNewSprinting && GetCharacterMovement()->bWantsToCrouch)
+	{
+		UnCrouch();
+	}
+	
 	bIsSprinting = bNewSprinting;
 	UpdateMovementSpeed();
+}
+
+void ABaseCharacter::SetCrouching(bool bNewCrouching)
+{
+	if (bNewCrouching)
+	{
+		if (bIsSprinting)
+		{
+			SetSprinting(false);
+		}
+		Crouch();
+	}
+	else
+	{
+		UnCrouch();
+	}
+}
+
+void ABaseCharacter::ToggleCrouch()
+{
+	SetCrouching(!GetCharacterMovement()->bWantsToCrouch);
 }
 
 void ABaseCharacter::SetAiming(bool bNewAiming)
@@ -97,6 +123,12 @@ void ABaseCharacter::Fire()
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	Move->GetNavAgentPropertiesRef().bCanCrouch = true;
+	Move->SetCrouchedHalfHeight(CrouchedHalfHeight);
+	Move->MaxWalkSpeedCrouched = CrouchSpeed;
+	
 	UpdateMovementSpeed();
 	SpawnDefaultWeapon();
 }

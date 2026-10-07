@@ -25,6 +25,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	bool IsSprinting() const { return bIsSprinting; }
 	
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void SetCrouching(bool bNewCrouching);
+
+	UFUNCTION(BlueprintCallable, Category = "Movement")
+	void ToggleCrouch();
+
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	bool IsCrouching() const { return bIsCrouched; }
+	
 	//Read by the AnimInstance
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsAiming() const { return bIsAiming; }
@@ -69,6 +78,12 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement")
 	float AimWalkSpeed = 250.0f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement")
+	float CrouchSpeed = 150.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement")
+	float CrouchedHalfHeight = 60.f;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
 	bool bIsAiming = false;
