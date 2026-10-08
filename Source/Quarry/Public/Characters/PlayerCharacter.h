@@ -6,13 +6,22 @@
 //#include "Characters/BaseCharacter.h"
 #include "Quarry/Characters/BaseCharacter.h"
 #include "InputActionValue.h"
+#include "Blueprint/UserWidget.h"
 #include "PlayerCharacter.generated.h"
-
 
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+
+UENUM()
+enum class EADSState : uint8 
+{
+	Hip, 
+	Entering, 
+	Scoped, 
+	Exiting
+};
 
 /**
  * 
@@ -35,11 +44,49 @@ protected:
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	
+	//ADS Scope
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	float ADSBlendTime = 0.3f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	float ScopedFOV = 20.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	float EnterFOVScale = 0.85f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	float ScopedSensitivityMultiplier = 1.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	float   ADSDuration = 0.3f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	FName ScopeEyeSocket = TEXT("ScopeEyeSocket");
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	TSubclassOf<UUserWidget> ScopeWidgetClass;
+	
+	UPROPERTY() 
+	TObjectPtr<UUserWidget> ScopeWidget;
+
+	EADSState ADSState = EADSState::Hip;
+	float   ADSAlpha = 0.f;
+
+	float   DefaultFOV = 90.f;
+	FVector DefaultCamRelLoc;
+	FVector ScopedYawSpaceOffset;
+
+	void StartADS();
+	void StopADS();
+	void EnterScope();
+	void ExitScope();
+	void UpdateADSCamera(float DeltaTime);
+	void SetFirstPersonHidden(bool bHide);
+	
 	//Input Handler
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);
-	void AimStarted();
-	void AimCompleted();
+	void AimToggle(const FInputActionValue& Value);
 	void FirePressed();
 	void SprintStarted();
 	void SprintCompleted();

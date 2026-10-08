@@ -33,6 +33,11 @@ ABaseCharacter::ABaseCharacter()
 
 void ABaseCharacter::SetSprinting(bool bNewSprinting)
 {
+	if (bIsAiming)
+	{
+		return;
+	}
+	
 	if (bNewSprinting && GetCharacterMovement()->bWantsToCrouch)
 	{
 		UnCrouch();
@@ -65,18 +70,23 @@ void ABaseCharacter::ToggleCrouch()
 
 void ABaseCharacter::SetAiming(bool bNewAiming)
 {
-	if (bNewAiming && !bIsArmed)
-	{
-		return;
-	}
-	
+	if (bNewAiming && (!bIsArmed || GetCharacterMovement()->IsFalling())) return;
+	if (bIsAiming == bNewAiming) return;
+
 	bIsAiming = bNewAiming;
+	if (bIsAiming) SetSprinting(false);
+	
 	UCharacterMovementComponent* Move = GetCharacterMovement();
-	
-	Move->bOrientRotationToMovement = !bIsAiming;
-	Move->bUseControllerDesiredRotation = bIsAiming;
-	
+	Move->bOrientRotationToMovement     = !bIsAiming;
+	Move->bUseControllerDesiredRotation =  bIsAiming;
+	if (bIsAiming) Move->RotationRate = FRotator(0.f, 720.f, 0.f);
 	UpdateMovementSpeed();
+
+	if (UAnimInstance* Anim = GetMesh()->GetAnimInstance(); Anim && ADSMontage)
+	{
+		if (bIsAiming) Anim->Montage_Play(ADSMontage);
+		else           Anim->Montage_Stop(0.2f, ADSMontage);
+	}
 }
 
 void ABaseCharacter::SetArmed(bool bNewArmed)

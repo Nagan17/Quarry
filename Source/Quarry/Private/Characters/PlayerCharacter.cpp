@@ -9,11 +9,12 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Weapons/Weapon.h"
 
 
 APlayerCharacter::APlayerCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 	
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -29,6 +30,10 @@ void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	BoomBaseLocation = CameraBoom->GetRelativeLocation();
+	
+	DefaultFOV       = FollowCamera->FieldOfView;
+	DefaultCamRelLoc = FollowCamera->GetRelativeLocation();
+	
 	UpdateMovementSpeed();
 }
 
@@ -45,6 +50,8 @@ void APlayerCharacter::Tick(float DeltaSeconds)
 	// Smooth crouch camera
 	CrouchCameraOffset = FMath::FInterpTo(CrouchCameraOffset, 0.f, DeltaSeconds, CrouchCameraInterpSpeed);
 	CameraBoom->SetRelativeLocation(BoomBaseLocation + FVector(0.f, 0.f, CrouchCameraOffset));
+	
+	UpdateADSCamera(DeltaSeconds);
 }
 
 void APlayerCharacter::NotifyControllerChanged()
@@ -80,8 +87,8 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	
 	if (AimAction)
 	{
-		Input->BindAction(AimAction, ETriggerEvent::Started, this, &APlayerCharacter::AimStarted);
-		Input->BindAction(AimAction, ETriggerEvent::Completed, this, &APlayerCharacter::AimCompleted);
+		Input->BindAction(AimAction, ETriggerEvent::Started, this, &APlayerCharacter::AimToggle);
+		//Input->BindAction(AimAction, ETriggerEvent::Completed, this, &APlayerCharacter::AimCompleted);
 	}
 	
 	if (FireAction)
@@ -102,7 +109,18 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void APlayerCharacter::SetAiming(bool bNewAiming)
 {
+	const bool bWas = bIsAiming;
 	Super::SetAiming(bNewAiming);
+	if (bIsAiming == bWas) return;
+	
+	if (bIsAiming)
+	{
+		StartADS();
+	}
+	else
+	{
+		StopADS();
+	}
 }
 
 void APlayerCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
@@ -118,6 +136,115 @@ void APlayerCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeigh
 	
 	CrouchCameraOffset -= ScaledHalfHeightAdjust;
 
+}
+
+void APlayerCharacter::StartADS()
+{
+	ADSDuration = (ADSMontage ? ADSMontage->GetPlayLength() : ADSBlendTime);
+	ADSDuration = FMath::Max(ADSDuration, 0.05f);
+	ADSState = EADSState::Entering;
+}
+
+void APlayerCharacter::StopADS()
+{
+	if (ADSState == EADSState::Scoped) ExitScope();
+	if (ADSState != EADSState::Hip) ADSState = EADSState::Exiting;
+}
+
+void APlayerCharacter::EnterScope()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
+	FString::Printf(TEXT("EnterScope | WidgetClass: %s"),
+	ScopeWidgetClass ? *ScopeWidgetClass->GetName() : TEXT("NONE")));
+	
+	ADSState = EADSState::Scoped;
+
+	const FRotator YawRot(0.f, GetControlRotation().Yaw, 0.f);
+	ScopedYawSpaceOffset = YawRot.UnrotateVector(FollowCamera->GetComponentLocation() - GetActorLocation());
+
+	FollowCamera->SetFieldOfView(ScopedFOV);
+	SetFirstPersonHidden(true);
+
+	if (!ScopeWidget && ScopeWidgetClass)
+	{
+		ScopeWidget = CreateWidget<UUserWidget>(Cast<APlayerController>(GetController()), ScopeWidgetClass);
+	}
+	
+	if (ScopeWidget)
+	{
+		ScopeWidget->AddToViewport();
+	}
+}
+
+void APlayerCharacter::ExitScope()
+{
+	if (ScopeWidget)
+	{
+		ScopeWidget->RemoveFromParent();
+	}
+	
+	SetFirstPersonHidden(false);
+	FollowCamera->SetFieldOfView(DefaultFOV * EnterFOVScale);
+}
+
+void APlayerCharacter::UpdateADSCamera(float DeltaTime)
+{
+	GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::Yellow,
+	FString::Printf(TEXT("ADS State: %d  Alpha: %.2f  Aiming: %d"),
+	(int32)ADSState, ADSAlpha, bIsAiming));
+	
+	if (ADSState == EADSState::Hip) return;
+
+	if (ADSState == EADSState::Scoped)
+	{
+		const FRotator YawRot(0.f, GetControlRotation().Yaw, 0.f);
+		FollowCamera->SetWorldLocation(GetActorLocation() + YawRot.RotateVector(ScopedYawSpaceOffset));
+		return;
+	}
+
+	const float Dir = (ADSState == EADSState::Entering) ? 1.f : -1.f;
+	ADSAlpha = FMath::Clamp(ADSAlpha + Dir * DeltaTime / ADSDuration, 0.f, 1.f);
+
+	if (ADSState == EADSState::Exiting && ADSAlpha <= 0.f)
+	{
+		ADSState = EADSState::Hip;
+		FollowCamera->SetRelativeLocation(DefaultCamRelLoc);
+		FollowCamera->SetFieldOfView(DefaultFOV);
+		return;
+	}
+
+	const FVector HipLoc = CameraBoom->GetSocketTransform(USpringArmComponent::SocketName)
+									 .TransformPosition(DefaultCamRelLoc);
+	FVector ScopeLoc = HipLoc;
+	if (EquippedWeapon)
+	{
+		if (UStaticMeshComponent* WM = EquippedWeapon->GetWeaponMesh(); WM && WM->DoesSocketExist(ScopeEyeSocket))
+		{
+			ScopeLoc = WM->GetSocketLocation(ScopeEyeSocket);
+		}
+	}
+	
+	const float A = FMath::InterpEaseInOut(0.f, 1.f, ADSAlpha, 2.f);
+	FollowCamera->SetWorldLocation(FMath::Lerp(HipLoc, ScopeLoc, A));
+	FollowCamera->SetFieldOfView(FMath::Lerp(DefaultFOV, DefaultFOV * EnterFOVScale, A));
+
+	if (ADSState == EADSState::Entering && ADSAlpha >= 1.f)
+	{
+		EnterScope();
+	}
+}
+
+void APlayerCharacter::SetFirstPersonHidden(bool bHide)
+{
+	GetMesh()->SetOwnerNoSee(bHide);
+	
+	if (EquippedWeapon)
+	{
+		if (UStaticMeshComponent* WM = EquippedWeapon->GetWeaponMesh())
+		{
+			WM->SetOwnerNoSee(bHide);
+		}
+	}
 }
 
 void APlayerCharacter::Move(const FInputActionValue& Value)
@@ -136,18 +263,16 @@ void APlayerCharacter::Move(const FInputActionValue& Value)
 void APlayerCharacter::Look(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
-	AddControllerYawInput(Axis.X);
-	AddControllerPitchInput(Axis.Y);
+	
+	const float Sens = (ADSState == EADSState::Scoped) ? (ScopedFOV / DefaultFOV) * ScopedSensitivityMultiplier : 1.f;
+
+	AddControllerYawInput(Axis.X * Sens);
+	AddControllerPitchInput(Axis.Y * Sens);
 }
 
-void APlayerCharacter::AimStarted()
+void APlayerCharacter::AimToggle(const FInputActionValue& Value)
 {
-	SetAiming(true);
-}
-
-void APlayerCharacter::AimCompleted()
-{
-	SetAiming(false);
+	SetAiming(!bIsAiming);
 }
 
 void APlayerCharacter::FirePressed()
@@ -177,6 +302,8 @@ void APlayerCharacter::CrouchPressed()
 
 void APlayerCharacter::JumpPressed()
 {
+	SetAiming(false);
+	
 	if (GetCharacterMovement()->bWantsToCrouch)
 	{
 		SetCrouching(false);
