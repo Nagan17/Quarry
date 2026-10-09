@@ -13,6 +13,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class USceneCaptureComponent2D;
 
 UENUM()
 enum class EADSState : uint8 
@@ -66,8 +67,23 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
 	TSubclassOf<UUserWidget> ScopeWidgetClass;
 	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ADS")
+	TObjectPtr<USceneCaptureComponent2D> ScopeCapture;
+	
 	UPROPERTY() 
 	TObjectPtr<UUserWidget> ScopeWidget;
+	
+	// Scope zoom
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	float MinScopeFOV = 5.f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	float ZoomStepMultiplier = 1.25f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
+	float ZoomInterpSpeed = 12.f;
+
+	float TargetScopeFOV = 20.f;
 
 	EADSState ADSState = EADSState::Hip;
 	float   ADSAlpha = 0.f;
@@ -82,6 +98,7 @@ protected:
 	void ExitScope();
 	void UpdateADSCamera(float DeltaTime);
 	void SetFirstPersonHidden(bool bHide);
+	void ZoomInput(const FInputActionValue& Value);
 	
 	//Input Handler
 	void Move(const FInputActionValue& Value);
@@ -146,4 +163,7 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> CrouchAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> ZoomAction;
 };

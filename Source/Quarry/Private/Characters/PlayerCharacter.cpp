@@ -8,6 +8,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
+#include "Components/SceneCaptureComponent2D.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Weapons/Weapon.h"
 
@@ -24,6 +25,14 @@ APlayerCharacter::APlayerCharacter()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+	
+	//Scope Render Target
+	ScopeCapture = CreateDefaultSubobject<USceneCaptureComponent2D>(TEXT("ScopeCapture"));
+	ScopeCapture->SetupAttachment(FollowCamera);
+	ScopeCapture->bCaptureEveryFrame = false;
+	ScopeCapture->bCaptureOnMovement = false;
+	ScopeCapture->bAlwaysPersistRenderingState = true;
+	ScopeCapture->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 }
 
 void APlayerCharacter::BeginPlay()
@@ -33,6 +42,8 @@ void APlayerCharacter::BeginPlay()
 	
 	DefaultFOV       = FollowCamera->FieldOfView;
 	DefaultCamRelLoc = FollowCamera->GetRelativeLocation();
+	
+	ScopeCapture->FOVAngle = ScopedFOV;
 	
 	UpdateMovementSpeed();
 }
@@ -105,6 +116,11 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	{
 		Input->BindAction(CrouchAction, ETriggerEvent::Started, this, &APlayerCharacter::CrouchPressed);
 	}
+	
+	if (ZoomAction)
+	{
+		Input->BindAction(ZoomAction, ETriggerEvent::Triggered, this, &APlayerCharacter::ZoomInput);
+	}
 }
 
 void APlayerCharacter::SetAiming(bool bNewAiming)
@@ -140,8 +156,7 @@ void APlayerCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeigh
 
 void APlayerCharacter::StartADS()
 {
-	ADSDuration = (ADSMontage ? ADSMontage->GetPlayLength() : ADSBlendTime);
-	ADSDuration = FMath::Max(ADSDuration, 0.05f);
+	ADSDuration = FMath::Max(ADSBlendTime, 0.05f);
 	ADSState = EADSState::Entering;
 }
 
@@ -153,18 +168,22 @@ void APlayerCharacter::StopADS()
 
 void APlayerCharacter::EnterScope()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Green,
-	FString::Printf(TEXT("EnterScope | WidgetClass: %s"),
-	ScopeWidgetClass ? *ScopeWidgetClass->GetName() : TEXT("NONE")));
-	
 	ADSState = EADSState::Scoped;
 
 	const FRotator YawRot(0.f, GetControlRotation().Yaw, 0.f);
 	ScopedYawSpaceOffset = YawRot.UnrotateVector(FollowCamera->GetComponentLocation() - GetActorLocation());
-
-	FollowCamera->SetFieldOfView(ScopedFOV);
+	
 	SetFirstPersonHidden(true);
-
+	ScopeCapture->HideActorComponents(this);
+	if (EquippedWeapon)
+	{
+		ScopeCapture->HideActorComponents(EquippedWeapon);
+	}
+	
+	TargetScopeFOV = ScopedFOV;
+	ScopeCapture->FOVAngle = ScopedFOV;
+	ScopeCapture->bCaptureEveryFrame = true;
+	
 	if (!ScopeWidget && ScopeWidgetClass)
 	{
 		ScopeWidget = CreateWidget<UUserWidget>(Cast<APlayerController>(GetController()), ScopeWidgetClass);
@@ -183,8 +202,8 @@ void APlayerCharacter::ExitScope()
 		ScopeWidget->RemoveFromParent();
 	}
 	
+	ScopeCapture->bCaptureEveryFrame = false;
 	SetFirstPersonHidden(false);
-	FollowCamera->SetFieldOfView(DefaultFOV * EnterFOVScale);
 }
 
 void APlayerCharacter::UpdateADSCamera(float DeltaTime)
@@ -199,6 +218,9 @@ void APlayerCharacter::UpdateADSCamera(float DeltaTime)
 	{
 		const FRotator YawRot(0.f, GetControlRotation().Yaw, 0.f);
 		FollowCamera->SetWorldLocation(GetActorLocation() + YawRot.RotateVector(ScopedYawSpaceOffset));
+		
+		ScopeCapture->FOVAngle = FMath::FInterpTo(ScopeCapture->FOVAngle, TargetScopeFOV, DeltaTime, ZoomInterpSpeed);
+
 		return;
 	}
 
@@ -247,6 +269,25 @@ void APlayerCharacter::SetFirstPersonHidden(bool bHide)
 	}
 }
 
+void APlayerCharacter::ZoomInput(const FInputActionValue& Value)
+{
+	if (ADSState != EADSState::Scoped) return;
+
+	const float Wheel = Value.Get<float>();
+	if (FMath::IsNearlyZero(Wheel)) return;
+	
+	if (Wheel > 0.0f)
+	{
+		TargetScopeFOV = TargetScopeFOV / ZoomStepMultiplier;
+	}
+	else
+	{
+		TargetScopeFOV = TargetScopeFOV * ZoomStepMultiplier;
+	}
+	
+	TargetScopeFOV = FMath::Clamp(TargetScopeFOV, MinScopeFOV, ScopedFOV);
+}
+
 void APlayerCharacter::Move(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
@@ -264,7 +305,7 @@ void APlayerCharacter::Look(const FInputActionValue& Value)
 {
 	const FVector2D Axis = Value.Get<FVector2D>();
 	
-	const float Sens = (ADSState == EADSState::Scoped) ? (ScopedFOV / DefaultFOV) * ScopedSensitivityMultiplier : 1.f;
+	const float Sens = (ADSState == EADSState::Scoped) ? (ScopeCapture->FOVAngle / DefaultFOV) * ScopedSensitivityMultiplier : 1.f;
 
 	AddControllerYawInput(Axis.X * Sens);
 	AddControllerPitchInput(Axis.Y * Sens);
