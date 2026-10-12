@@ -37,8 +37,17 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Animal|Awareness")
 	bool bIsAlert = false;
 	
+	UPROPERTY(BlueprintReadOnly, Category = "Animal|Awareness")
+	bool bIsGrazing = false;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Animal|Locomotion")
 	float MovingThreshold = 5.0f;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Animal|Posture")
+	bool bIsResting = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Animal|Posture")
+	bool bIsSleeping = false;
 	
 private:
 	UPROPERTY()

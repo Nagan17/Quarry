@@ -24,6 +24,19 @@ enum class EAwarenessState : uint8
 	Alarmed
 };
 
+UENUM(BlueprintType)
+enum class EAnimalPosture : uint8
+{
+	Standing,
+	LyingDown,
+	Resting,
+	Sleeping,
+	GettingUp
+};
+
+class UAnimMontage;
+class UBehaviorTree;
+
 /**
  * 
  */
@@ -106,4 +119,23 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Flee")
 	float FleeCooldown = 4.0f;
+	
+	//Rest
+	UPROPERTY(EditDefaultsOnly, Category = "Rest")
+	TObjectPtr<UAnimMontage> LieDownMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Rest")
+	TObjectPtr<UAnimMontage> GetUpFromRestMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Rest")
+	TObjectPtr<UAnimMontage> GetUpFromSleepMontage;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Rest")
+	float RestingSightMultiplier = 0.7f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Rest")
+	float SleepingSightMultiplier = 0.1f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Rest")
+	float SleepingHearingMultiplier = 0.4f;
 };

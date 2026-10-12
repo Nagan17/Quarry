@@ -24,5 +24,5 @@ protected:
 	float RandomAngleJitter = 15.0f;
 	
 	UPROPERTY(EditAnywhere, Category = "Debug")
-	bool bDrawDebug = true;
+	bool bDrawDebug = false;
 };

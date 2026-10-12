@@ -37,4 +37,9 @@ void UAnimalAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	}
 	
 	bIsAlert = (AwarenessState == EAwarenessState::Suspicious) && !bIsMoving;
+	bIsGrazing = Animal->IsGrazing();
+	
+	const EAnimalPosture Posture = Animal->GetPosture();
+	bIsResting  = (Posture == EAnimalPosture::LyingDown || Posture == EAnimalPosture::Resting);
+	bIsSleeping = (Posture == EAnimalPosture::Sleeping);
 }

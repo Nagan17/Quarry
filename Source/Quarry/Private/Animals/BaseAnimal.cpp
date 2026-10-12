@@ -28,10 +28,64 @@ void ABaseAnimal::SetRunning(bool bRun)
 	GetCharacterMovement()->MaxWalkSpeed = bRun ? AnimalData->RunSpeed : AnimalData->WalkSpeed;
 }
 
+void ABaseAnimal::StartLyingDown()
+{
+	if (Posture != EAnimalPosture::Standing) return;
+	
+	GetCharacterMovement()->StopMovementImmediately();
+	bIsGrazing = false;
+	SetPosture(EAnimalPosture::LyingDown);
+	
+	const float Duration = PlayPostureMontage(AnimalData ? AnimalData->LieDownMontage.Get() : nullptr);
+	
+	GetWorldTimerManager().SetTimer(PostureTimer,
+		FTimerDelegate::CreateUObject(this, &ABaseAnimal::SetPosture, EAnimalPosture::Resting),
+		FMath::Max(Duration, 0.01f), false);
+}
+
+void ABaseAnimal::FallAsleep()
+{
+	if (Posture == EAnimalPosture::Resting)
+	{
+		SetPosture(EAnimalPosture::Sleeping);
+	}
+}
+
+void ABaseAnimal::StartGettingUp()
+{
+	if (Posture == EAnimalPosture::Standing || Posture == EAnimalPosture::GettingUp) return;
+	
+	UAnimMontage* Montage = nullptr;
+	if (AnimalData)
+	{
+		Montage = (Posture == EAnimalPosture::Sleeping)
+			? AnimalData->GetUpFromSleepMontage.Get()
+			: AnimalData->GetUpFromRestMontage.Get();
+	}
+	
+	GetWorldTimerManager().ClearTimer(PostureTimer);
+	SetPosture(EAnimalPosture::GettingUp);
+	
+	const float Duration = PlayPostureMontage(Montage);
+	GetWorldTimerManager().SetTimer(PostureTimer,
+		FTimerDelegate::CreateUObject(this, &ABaseAnimal::SetPosture, EAnimalPosture::Standing),
+		FMath::Max(Duration, 0.01f), false);
+}
+
 // Called when the game starts or when spawned
 void ABaseAnimal::BeginPlay()
 {
 	Super::BeginPlay();
 	SetRunning(false);
+}
+
+void ABaseAnimal::SetPosture(EAnimalPosture NewPosture)
+{
+	Posture = NewPosture;
+}
+
+float ABaseAnimal::PlayPostureMontage(UAnimMontage* Montage)
+{
+	return Montage ? PlayAnimMontage(Montage) : 0.0f;
 }
 

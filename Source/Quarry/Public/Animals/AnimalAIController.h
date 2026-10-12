@@ -57,7 +57,7 @@ protected:
 	TObjectPtr<UAISenseConfig_Hearing> HearingConfig;
 	
 	UPROPERTY(EditAnywhere, Category = "Debug")
-	bool bDrawDebugAwareness = true;
+	bool bDrawDebugAwareness = false;
 	
 private:
 	void ConfigureSensesFromData(const UAnimalData* Data);

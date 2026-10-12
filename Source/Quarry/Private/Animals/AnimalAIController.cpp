@@ -133,7 +133,8 @@ void AAnimalAIController::OnTargetPerceptionUpdate(AActor* Actor, FAIStimulus St
 		}
 		else
 		{
-			AddAwareness(Stimulus.Strength * AnimalData->NoiseAwarenessScale);
+			const float HearingScale = (Animal->GetPosture() == EAnimalPosture::Sleeping) ? AnimalData->SleepingHearingMultiplier : 1.f;
+			AddAwareness(Stimulus.Strength * AnimalData->NoiseAwarenessScale * HearingScale);
 		}
 		
 		SetThreat(Actor, Stimulus.StimulusLocation);
@@ -175,6 +176,20 @@ void AAnimalAIController::UpdateSightAwareness(float DeltaTime)
 		{
 			Rate *= AnimalData->CrouchSightMultiplier;
 		}
+	}
+	
+	switch (Animal->GetPosture())
+	{
+	case EAnimalPosture::LyingDown:
+		
+	case EAnimalPosture::Resting:  
+		Rate *= AnimalData->RestingSightMultiplier;  
+		break;
+		
+	case EAnimalPosture::Sleeping: 
+		Rate *= AnimalData->SleepingSightMultiplier; 
+		break;
+	default: break;
 	}
 	
 	// Standing still = barely noticeable, and does NOT count as a fresh stimulus,
