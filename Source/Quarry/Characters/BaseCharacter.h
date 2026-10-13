@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Weapons/Weapon.h"
 #include "BaseCharacter.generated.h"
 
 class UAnimMontage;
-class AWeapon;
 class UHealthComponent;
 
 UCLASS(Abstract)
@@ -58,6 +58,11 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	virtual void Fire();
+	
+	//Weapon
+	UFUNCTION(BlueprintCallable, Category="Combat")
+	void Reload();
+
 	
 protected:
 	// Called when the game starts or when spawned
@@ -126,6 +131,9 @@ protected:
 	FName HandWeaponSocket = TEXT("RightHandWeaponSocket");
 	
 	virtual FVector GetAimPoint() const;
+	
+	void HandleWeaponStateChanged(EWeaponState NewState);
+	void FaceAimDirection();
 	
 public:	
 	// Called every frame

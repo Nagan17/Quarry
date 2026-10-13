@@ -94,6 +94,12 @@ void ABaseCharacter::SetAiming(bool bNewAiming)
 
 void ABaseCharacter::SetArmed(bool bNewArmed)
 {
+	if (!bIsArmed)
+	{
+		EquippedWeapon->CancelAction();
+		GetMesh()->GetAnimInstance()->StopAllMontages(0.2f);
+	}
+	
 	if (!EquippedWeapon || bIsArmed == bNewArmed)
 	{
 		return;
@@ -121,18 +127,25 @@ void ABaseCharacter::Fire()
 		return;
 	}
 	
-	if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
+	if (!bIsAiming)
 	{
-		if (!Anim->Montage_IsPlaying(FireMontage))
+		FaceAimDirection();
+	}
+	
+	if (EquippedWeapon->TryFire(GetAimPoint(), bIsAiming) && FireMontage)
+	{
+		if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
 		{
 			Anim->Montage_Play(FireMontage);
 		}
 	}
-	
-	// TODO: spawn projectile / line trace, ammo, recoil, etc.
-	if (EquippedWeapon)
+}
+
+void ABaseCharacter::Reload()
+{
+	if (bIsArmed && EquippedWeapon)
 	{
-		EquippedWeapon->Fire(GetAimPoint());
+		EquippedWeapon->TryReload();
 	}
 }
 
@@ -209,7 +222,8 @@ void ABaseCharacter::SpawnDefaultWeapon()
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	EquippedWeapon = GetWorld()->SpawnActor<AWeapon>(DefaultWeaponClass, GetActorTransform(), Params);
-
+	EquippedWeapon->OnStateChanged.AddUObject(this, &ABaseCharacter::HandleWeaponStateChanged);
+	
 	bIsArmed = false;
 	AttachWeaponToSocket(BackWeaponSocket);
 }
@@ -231,6 +245,43 @@ FVector ABaseCharacter::GetAimPoint() const
 	FRotator Rot;
 	GetActorEyesViewPoint(Loc, Rot);
 	return Loc + Rot.Vector() * 10000.f;
+}
+
+void ABaseCharacter::HandleWeaponStateChanged(EWeaponState NewState)
+{
+	UAnimInstance* Anim = GetMesh()->GetAnimInstance();
+	if (!Anim || !EquippedWeapon) return;
+	
+	auto PlayTimed = [Anim](UAnimMontage* M, float Duration)
+	{
+		if (M && Duration > 0)
+		{
+			Anim->Montage_Play(M, M->GetPlayLength() / Duration);
+		}
+	};
+
+	switch (NewState)
+	{
+	case EWeaponState::Cycling:
+		PlayTimed(EquippedWeapon->GetCycleMontage(), EquippedWeapon->GetCycleTime());
+		break;
+		
+	case EWeaponState::Reloading:
+		if (bIsAiming)
+		{
+			SetAiming(false);
+		}
+		PlayTimed(EquippedWeapon->GetReloadMontage(), EquippedWeapon->GetReloadTime());
+		break;
+		
+	default:
+		break;
+	}
+}
+
+void ABaseCharacter::FaceAimDirection()
+{
+	SetActorRotation(FRotator(0, GetControlRotation().Yaw, 0));
 }
 
 // Called every frame

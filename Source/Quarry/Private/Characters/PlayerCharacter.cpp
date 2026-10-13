@@ -107,6 +107,11 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		Input->BindAction(FireAction, ETriggerEvent::Started, this, &APlayerCharacter::FirePressed);
 	}
 	
+	if (ReloadAction)
+	{
+		Input->BindAction(ReloadAction, ETriggerEvent::Started, this, &APlayerCharacter::ReloadPressed);
+	}
+	
 	if (EquipAction)
 	{
 		Input->BindAction(EquipAction, ETriggerEvent::Started, this, &APlayerCharacter::EquipPressed);
@@ -125,6 +130,8 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void APlayerCharacter::SetAiming(bool bNewAiming)
 {
+	if (bNewAiming && EquippedWeapon && EquippedWeapon->GetState() == EWeaponState::Reloading) return;
+
 	const bool bWas = bIsAiming;
 	Super::SetAiming(bNewAiming);
 	if (bIsAiming == bWas) return;
@@ -156,8 +163,13 @@ void APlayerCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeigh
 
 FVector APlayerCharacter::GetAimPoint() const
 {
-	const FVector Start = FollowCamera->GetComponentLocation();
-	const FVector End   = Start + FollowCamera->GetForwardVector() * 100000.f;
+	const FVector Fwd = FollowCamera->GetForwardVector();
+	FVector Start = FollowCamera->GetComponentLocation();
+	
+	const float ToChar = FVector::DotProduct(GetActorLocation() - Start, Fwd);
+	Start += Fwd * FMath::Max(ToChar, 0.f);
+	
+	const FVector End = Start + Fwd * 100000.f;
 	
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(AimTrace), false, this);
 	Q.AddIgnoredActor(EquippedWeapon);
@@ -220,10 +232,6 @@ void APlayerCharacter::ExitScope()
 
 void APlayerCharacter::UpdateADSCamera(float DeltaTime)
 {
-	GEngine->AddOnScreenDebugMessage(1, 0.f, FColor::Yellow,
-	FString::Printf(TEXT("ADS State: %d  Alpha: %.2f  Aiming: %d"),
-	(int32)ADSState, ADSAlpha, bIsAiming));
-	
 	if (ADSState == EADSState::Hip) return;
 
 	if (ADSState == EADSState::Scoped)
@@ -331,6 +339,11 @@ void APlayerCharacter::AimToggle(const FInputActionValue& Value)
 void APlayerCharacter::FirePressed()
 {
 	Fire();
+}
+
+void APlayerCharacter::ReloadPressed()
+{
+	Reload();
 }
 
 void APlayerCharacter::SprintStarted()

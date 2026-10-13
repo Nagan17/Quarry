@@ -106,6 +106,7 @@ protected:
 	void Look(const FInputActionValue& Value);
 	void AimToggle(const FInputActionValue& Value);
 	void FirePressed();
+	void ReloadPressed();
 	void SprintStarted();
 	void SprintCompleted();
 	void EquipPressed();
@@ -158,6 +159,9 @@ protected:
  
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> FireAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> ReloadAction;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> EquipAction;
