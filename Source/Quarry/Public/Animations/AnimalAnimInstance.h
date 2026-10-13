@@ -49,6 +49,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "Animal|Posture")
 	bool bIsSleeping = false;
 	
+	UPROPERTY(EditDefaultsOnly, Category = "Animal|Locomotion")
+	float SpeedFalloffRate = 5.0f;
+	
 private:
 	UPROPERTY()
 	TObjectPtr<ABaseAnimal> Animal;

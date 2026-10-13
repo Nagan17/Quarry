@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "Weapon.generated.h"
 
+class AProjectile;
+
 UCLASS()
 class QUARRY_API AWeapon : public AActor
 {
@@ -22,8 +24,16 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<UStaticMeshComponent> WeaponMesh;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Weapon") 
+	TSubclassOf<AProjectile> ProjectileClass;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Weapon") 
+	FName MuzzleSocket = TEXT("MuzzleSocket");
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	void Fire(const FVector& AimPoint);
 };

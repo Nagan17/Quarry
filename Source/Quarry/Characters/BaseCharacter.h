@@ -8,6 +8,7 @@
 
 class UAnimMontage;
 class AWeapon;
+class UHealthComponent;
 
 UCLASS(Abstract)
 class QUARRY_API ABaseCharacter : public ACharacter
@@ -94,6 +95,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat")
 	bool bIsArmed = false;
 	
+	//Health
+	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	UHealthComponent* HealthComp;
+	
+	UFUNCTION()
+	virtual void HandleDeath(UHealthComponent* HealthComponent, AController* Contr);
+	
+	UPROPERTY(EditDefaultsOnly, Category="Health")
+	TMap<FName, float> BoneDamageMultipliers;
+	
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	
 	//Weapon
 	virtual void Destroyed() override;
 
@@ -111,6 +124,8 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Weapon")
 	FName HandWeaponSocket = TEXT("RightHandWeaponSocket");
+	
+	virtual FVector GetAimPoint() const;
 	
 public:	
 	// Called every frame

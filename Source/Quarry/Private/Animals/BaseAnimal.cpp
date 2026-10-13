@@ -3,7 +3,10 @@
 
 #include "Animals/BaseAnimal.h"
 
+#include <Components/HealthComponent.h>
+
 #include "Animals/AnimalAIController.h"
+#include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 // Sets default values
@@ -11,6 +14,8 @@ ABaseAnimal::ABaseAnimal()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
+	
+	HealthComp = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 	
 	AIControllerClass = AAnimalAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
@@ -72,10 +77,32 @@ void ABaseAnimal::StartGettingUp()
 		FMath::Max(Duration, 0.01f), false);
 }
 
+void ABaseAnimal::HandleDeath(UHealthComponent* HealthComponent, AController* Contr)
+{
+	
+}
+
+float ABaseAnimal::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+	AActor* DamageCauser)
+{
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		const auto& PointEvent = static_cast<const FPointDamageEvent&>(DamageEvent);
+		if (const float* Mult = BoneDamageMultipliers.Find(PointEvent.HitInfo.BoneName))
+		{
+			DamageAmount *= *Mult;
+		}
+	}
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+}
+
 // Called when the game starts or when spawned
 void ABaseAnimal::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	HealthComp->OnDeath.AddUniqueDynamic(this, &ABaseAnimal::HandleDeath);
+	
 	SetRunning(false);
 }
 

@@ -44,6 +44,7 @@ protected:
 	virtual void SetAiming(bool bNewAiming) override;
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
+	virtual FVector GetAimPoint() const override;
 	
 	//ADS Scope
 	UPROPERTY(EditDefaultsOnly, Category = "ADS") 

@@ -27,8 +27,10 @@ void UAnimalAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	
 	if (!Animal || !MoveComp) return;
 	
-	Speed = MoveComp->Velocity.Size2D();
-	bIsMoving = Speed > MovingThreshold;
+	const float RawSpeed = MoveComp->Velocity.Size2D();
+	
+	Speed = (RawSpeed >= Speed) ? RawSpeed : FMath::FInterpTo(Speed, RawSpeed, DeltaSeconds, SpeedFalloffRate);
+	bIsMoving = Speed > MovingThreshold * 4.f;
 	bIsFalling = MoveComp->IsFalling();
 	
 	if (const AAnimalAIController* AIC = Cast<AAnimalAIController>(Animal->GetController()))

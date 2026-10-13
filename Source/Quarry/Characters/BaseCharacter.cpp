@@ -3,10 +3,11 @@
 
 //#include "Characters/BaseCharacter.h"
 #include "BaseCharacter.h"
-
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Weapons/Weapon.h"
+#include "Components/HealthComponent.h"
+#include "Engine/DamageEvents.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -15,6 +16,8 @@ ABaseCharacter::ABaseCharacter()
 	PrimaryActorTick.bCanEverTick = false;
 
 	GetCapsuleComponent()->InitCapsuleSize(42.0f, 96.0f);
+	
+	HealthComp = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
 	
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -127,12 +130,18 @@ void ABaseCharacter::Fire()
 	}
 	
 	// TODO: spawn projectile / line trace, ammo, recoil, etc.
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->Fire(GetAimPoint());
+	}
 }
 
 // Called when the game starts or when spawned
 void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	HealthComp->OnDeath.AddUniqueDynamic(this, &ABaseCharacter::HandleDeath);
 	
 	UCharacterMovementComponent* Move = GetCharacterMovement();
 	Move->GetNavAgentPropertiesRef().bCanCrouch = true;
@@ -157,6 +166,25 @@ void ABaseCharacter::UpdateMovementSpeed()
 	}
 
 	GetCharacterMovement()->MaxWalkSpeed = Speed;
+}
+
+void ABaseCharacter::HandleDeath(UHealthComponent* HealthComponent, AController* Contr)
+{
+	
+}
+
+float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+	AActor* DamageCauser)
+{
+	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		const auto& PointEvent = static_cast<const FPointDamageEvent&>(DamageEvent);
+		if (const float* Mult = BoneDamageMultipliers.Find(PointEvent.HitInfo.BoneName))
+		{
+			DamageAmount = *Mult;
+		}
+	}
+	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 }
 
 void ABaseCharacter::Destroyed()
@@ -195,6 +223,14 @@ void ABaseCharacter::AttachWeaponToSocket(FName SocketName)
 
 	EquippedWeapon->AttachToComponent(GetMesh(),
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketName);
+}
+
+FVector ABaseCharacter::GetAimPoint() const
+{
+	FVector Loc; 
+	FRotator Rot;
+	GetActorEyesViewPoint(Loc, Rot);
+	return Loc + Rot.Vector() * 10000.f;
 }
 
 // Called every frame

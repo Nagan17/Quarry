@@ -154,6 +154,18 @@ void APlayerCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeigh
 
 }
 
+FVector APlayerCharacter::GetAimPoint() const
+{
+	const FVector Start = FollowCamera->GetComponentLocation();
+	const FVector End   = Start + FollowCamera->GetForwardVector() * 100000.f;
+	
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(AimTrace), false, this);
+	Q.AddIgnoredActor(EquippedWeapon);
+	
+	FHitResult Hit;
+	return GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Q) ? Hit.ImpactPoint : End;
+}
+
 void APlayerCharacter::StartADS()
 {
 	ADSDuration = FMath::Max(ADSBlendTime, 0.05f);

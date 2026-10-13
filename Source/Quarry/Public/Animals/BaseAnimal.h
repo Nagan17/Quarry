@@ -7,6 +7,7 @@
 #include "GameFramework/Character.h"
 #include "BaseAnimal.generated.h"
 
+class UHealthComponent;
 class UAnimalData;
 
 UCLASS(Abstract)
@@ -36,6 +37,18 @@ public:
 	void StartLyingDown();
 	void FallAsleep();
 	void StartGettingUp();
+	
+	//Health
+	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	UHealthComponent* HealthComp;
+	
+	UFUNCTION()
+	virtual void HandleDeath(UHealthComponent* HealthComponent, AController* Contr);
+	
+	UPROPERTY(EditDefaultsOnly, Category="Health")
+	TMap<FName, float> BoneDamageMultipliers;
+	
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
 	// Called when the game starts or when spawned

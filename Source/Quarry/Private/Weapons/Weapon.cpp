@@ -3,6 +3,8 @@
 
 #include "Weapons/Weapon.h"
 
+#include "Weapons/Projectile.h"
+
 // Sets default values
 AWeapon::AWeapon()
 {
@@ -22,6 +24,25 @@ void AWeapon::BeginPlay()
 {
 	Super::BeginPlay();
 	
+}
+
+void AWeapon::Fire(const FVector& AimPoint)
+{
+	if (!ProjectileClass || !WeaponMesh->DoesSocketExist(MuzzleSocket))
+	{
+		return;
+	}
+	
+	const FVector MuzzleLocation = WeaponMesh->GetSocketLocation(MuzzleSocket);
+	const FRotator ShotRotation = (AimPoint - MuzzleLocation).Rotation();
+	
+	FActorSpawnParameters Params;
+	Params.Owner = this;
+	Params.Instigator = GetInstigator();
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	
+	GetWorld()->SpawnActor<AProjectile>(ProjectileClass, MuzzleLocation, ShotRotation, Params);
+
 }
 
 // Called every frame

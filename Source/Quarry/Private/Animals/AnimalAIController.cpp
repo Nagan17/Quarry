@@ -13,6 +13,7 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "GameFramework/Character.h"
 #include "DrawDebugHelpers.h"
+#include "Navigation/PathFollowingComponent.h"
 
 const FName AAnimalAIController::BB_ThreatActor(TEXT("ThreatActor"));
 const FName AAnimalAIController::BB_ThreatLocation(TEXT("ThreatLocation"));
@@ -75,6 +76,11 @@ void AAnimalAIController::Tick(float DeltaTime)
 void AAnimalAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
+	
+	if (UPathFollowingComponent* PathComp = GetPathFollowingComponent())
+	{
+		PathComp->SetStopMovementOnFinish(false);
+	}
 	
 	Animal = Cast<ABaseAnimal>(InPawn);
 	AnimalData = Animal ? Animal->GetAnimalData() : nullptr;
