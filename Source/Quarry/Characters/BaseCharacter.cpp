@@ -132,7 +132,7 @@ void ABaseCharacter::Fire()
 		FaceAimDirection();
 	}
 	
-	if (EquippedWeapon->TryFire(GetAimPoint(), bIsAiming) && FireMontage)
+	if (EquippedWeapon->TryFire(GetAimPoint(), bIsAiming, GetShotOriginOverride()) && FireMontage)
 	{
 		if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
 		{

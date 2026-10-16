@@ -163,19 +163,43 @@ void APlayerCharacter::OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeigh
 
 FVector APlayerCharacter::GetAimPoint() const
 {
-	const FVector Fwd = FollowCamera->GetForwardVector();
-	FVector Start = FollowCamera->GetComponentLocation();
-	
+	const USceneComponent* View = (ADSState == EADSState::Scoped)
+			? static_cast<const USceneComponent*>(ScopeCapture.Get())
+			: static_cast<const USceneComponent*>(FollowCamera.Get());
+
+	const FVector Fwd = View->GetForwardVector();
+	FVector Start = View->GetComponentLocation();
+
 	const float ToChar = FVector::DotProduct(GetActorLocation() - Start, Fwd);
 	Start += Fwd * FMath::Max(ToChar, 0.f);
-	
 	const FVector End = Start + Fwd * 100000.f;
-	
+
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(AimTrace), false, this);
 	Q.AddIgnoredActor(EquippedWeapon);
-	
+
 	FHitResult Hit;
 	return GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Q) ? Hit.ImpactPoint : End;
+}
+
+TOptional<FVector> APlayerCharacter::GetShotOriginOverride() const
+{
+	if (ADSState != EADSState::Scoped)
+	{
+		return{};
+	}
+	
+	const FVector CamLoc = ScopeCapture->GetComponentLocation();
+	const FVector Desired = CamLoc + ScopeCapture->GetForwardVector() * ScopeSpawnForwardOffset;
+	
+	FHitResult Hit;
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ScopeSpawn), false, this);
+	Q.AddIgnoredActor(EquippedWeapon);
+	if (GetWorld()->LineTraceSingleByChannel(Hit, CamLoc, Desired, ECC_Visibility, Q))
+	{
+		return Hit.Location;
+	}
+	
+	return Desired;
 }
 
 void APlayerCharacter::StartADS()
@@ -228,6 +252,7 @@ void APlayerCharacter::ExitScope()
 	
 	ScopeCapture->bCaptureEveryFrame = false;
 	SetFirstPersonHidden(false);
+	ResetScopeSway();
 }
 
 void APlayerCharacter::UpdateADSCamera(float DeltaTime)
@@ -240,7 +265,8 @@ void APlayerCharacter::UpdateADSCamera(float DeltaTime)
 		FollowCamera->SetWorldLocation(GetActorLocation() + YawRot.RotateVector(ScopedYawSpaceOffset));
 		
 		ScopeCapture->FOVAngle = FMath::FInterpTo(ScopeCapture->FOVAngle, TargetScopeFOV, DeltaTime, ZoomInterpSpeed);
-
+		UpdateScopeSway(DeltaTime);
+		
 		return;
 	}
 
@@ -306,6 +332,59 @@ void APlayerCharacter::ZoomInput(const FInputActionValue& Value)
 	}
 	
 	TargetScopeFOV = FMath::Clamp(TargetScopeFOV, MinScopeFOV, ScopedFOV);
+}
+
+void APlayerCharacter::UpdateScopeSway(float DeltaTime)
+{
+	float MoveTarget = FMath::Clamp(GetVelocity().Size2D() / FMath::Max(AimWalkSpeed, 1.f), 0.f, 1.f);
+	if (bIsCrouched)
+	{
+		MoveTarget *= CrouchSwayMultiplier;
+	}
+	
+	MoveSwayAlpha = FMath::FInterpTo(MoveSwayAlpha, MoveTarget, DeltaTime, SwayBlendSpeed);
+
+	const bool bCycling = EquippedWeapon && EquippedWeapon->GetState() == EWeaponState::Cycling;
+	CycleShakeAlpha = FMath::FInterpTo(CycleShakeAlpha, bCycling ? 1.f : 0.f, DeltaTime, 10.f);
+
+	// Accumulate phase (not time * speed) so changing speed never causes a jump
+	IdlePhase += DeltaTime * IdleSwaySpeed;
+	MovePhase += DeltaTime * MoveSwaySpeed;
+	ShakeTime += DeltaTime;
+
+	// Idle breathing: figure-8 (pitch at twice the yaw frequency)
+	float Yaw   = FMath::Sin(IdlePhase)       * IdleSwayAmount;
+	float Pitch = FMath::Sin(IdlePhase * 2.f) * IdleSwayAmount * 0.5f;
+
+	// Walking: side-to-side with a footstep bob
+	Yaw   += FMath::Sin(MovePhase)       * MoveSwayAmount * MoveSwayAlpha;
+	Pitch += FMath::Sin(MovePhase * 2.f) * MoveSwayAmount * 0.5f * MoveSwayAlpha;
+
+	// Bolt cycle: jittery noise (+ slight cant)
+	const float T = ShakeTime * CycleShakeFrequency;
+	Yaw   += FMath::PerlinNoise1D(T)         * CycleShakeAmount * CycleShakeAlpha;
+	Pitch += FMath::PerlinNoise1D(T + 37.f)  * CycleShakeAmount * CycleShakeAlpha;
+	const float Roll = FMath::PerlinNoise1D(T + 91.f) * CycleShakeAmount * 2.f * CycleShakeAlpha;
+
+	const FRotator Sway(Pitch, Yaw, Roll);
+	ScopeCapture->SetRelativeRotation(Sway);
+	ApplyScopeWidgetSway(Sway);
+}
+
+void APlayerCharacter::ResetScopeSway()
+{
+	MoveSwayAlpha = 0.0f;
+	CycleShakeAlpha = 0.0f;
+	ScopeCapture->SetRelativeRotation(FRotator::ZeroRotator);
+	ApplyScopeWidgetSway(FRotator::ZeroRotator);
+}
+
+void APlayerCharacter::ApplyScopeWidgetSway(const FRotator& Sway)
+{
+	if (!ScopeWidget) return;
+
+	ScopeWidget->SetRenderTranslation(FVector2D(Sway.Yaw, -Sway.Pitch) * WidgetPixelsPerDegree);
+	ScopeWidget->SetRenderTransformAngle(Sway.Roll * WidgetRollScale);
 }
 
 void APlayerCharacter::Move(const FInputActionValue& Value)

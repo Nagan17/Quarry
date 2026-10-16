@@ -32,6 +32,12 @@ AProjectile::AProjectile()
 	InitialLifeSpan = 5.0f;
 }
 
+void AProjectile::InitBallistics(float Speed, float GravityScale)
+{
+	MovementComponent->InitialSpeed = Speed;
+	MovementComponent->ProjectileGravityScale = GravityScale;
+}
+
 // Called when the game starts or when spawned
 void AProjectile::BeginPlay()
 {

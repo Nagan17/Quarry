@@ -18,7 +18,7 @@ AWeapon::AWeapon()
 
 }
 
-bool AWeapon::TryFire(const FVector& AimPoint, bool bAiming)
+bool AWeapon::TryFire(const FVector& AimPoint, bool bAiming, TOptional<FVector> OriginOverride)
 {
 	if (State != EWeaponState::Ready) return false;
 	
@@ -28,7 +28,11 @@ bool AWeapon::TryFire(const FVector& AimPoint, bool bAiming)
 		return false;
 	}
 	
-	SpawnProjectile(AimPoint, bAiming ? ADSSpreadDeg : HipSpreadDeg);
+	const FVector Origin = OriginOverride.IsSet()
+	? OriginOverride.GetValue()
+	: WeaponMesh->GetSocketLocation(MuzzleSocket);
+	
+	SpawnProjectile(Origin, AimPoint, bAiming ? ADSSpreadDeg : HipSpreadDeg);
 	bRoundChambered = false;
 	BroadcastAmmo();
 	
@@ -65,22 +69,27 @@ void AWeapon::BeginPlay()
 	BroadcastAmmo();
 }
 
-void AWeapon::SpawnProjectile(const FVector& AimPoint, float SpreadDeg)
+void AWeapon::SpawnProjectile(const FVector& Origin, const FVector& AimPoint, float SpreadDeg)
 {
 	if (!ProjectileClass || !WeaponMesh->DoesSocketExist(MuzzleSocket)) return;
 	
-	const FVector MuzzleLocation = WeaponMesh->GetSocketLocation(MuzzleSocket);
-	FVector Dir = (AimPoint - MuzzleLocation).GetSafeNormal();
+	FVector Dir = (AimPoint - Origin).GetSafeNormal();
 	if (SpreadDeg > 0.0f)
 	{
 		Dir = FMath::VRandCone(Dir, FMath::DegreesToRadians(SpreadDeg));
 	}
 	
-	FActorSpawnParameters Params;
-	Params.Owner = this;
-	Params.Instigator = GetInstigator();
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	GetWorld()->SpawnActor<AProjectile>(ProjectileClass, MuzzleLocation, Dir.Rotation(), Params);
+	const FTransform SpawnTM(Dir.Rotation(), Origin);
+	
+	AProjectile* Bullet = GetWorld()->SpawnActorDeferred<AProjectile>(
+		ProjectileClass, SpawnTM, this, GetInstigator(),
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	
+	if (Bullet)
+	{
+		Bullet->InitBallistics(MuzzleVelocity, BulletGravityScale);
+		Bullet->FinishSpawning(SpawnTM);
+	}
 }
 
 void AWeapon::StartCycleOrReload()

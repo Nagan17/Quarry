@@ -19,7 +19,6 @@ public:
 	// Sets default values for this character's properties
 	ABaseCharacter();
 	
-	
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	void SetSprinting(bool bNewSprinting);
 	
@@ -62,6 +61,8 @@ public:
 	//Weapon
 	UFUNCTION(BlueprintCallable, Category="Combat")
 	void Reload();
+	
+	virtual TOptional<FVector> GetShotOriginOverride() const { return {}; }
 
 	
 protected:

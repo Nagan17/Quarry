@@ -37,7 +37,7 @@ public:
 	
 	FOnWeaponStateChanged OnStateChanged;
 	
-	bool TryFire(const FVector& AimPoint, bool bAiming);
+	bool TryFire(const FVector& AimPoint, bool bAiming, TOptional<FVector> OriginOverride = {});
 	bool TryReload();
 	void CancelAction();
 	
@@ -97,8 +97,15 @@ protected:
 	
 	EWeaponState State = EWeaponState::Ready;
 	FTimerHandle ActionTimer;
+	
+	//Bullet
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon|Ballistics", meta = (ClampMin = "100"))
+	float MuzzleVelocity = 40000.f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Weapon|Ballistics", meta = (ClampMin = "0"))
+	float BulletGravityScale = 1.0f;
 
-	void SpawnProjectile(const FVector& AimPoint, float SpreadDeg);
+	void SpawnProjectile(const FVector& Origin, const FVector& AimPoint, float SpreadDeg);
 	void StartCycleOrReload();
 	void StartFullReload();
 	void FinishCycle();

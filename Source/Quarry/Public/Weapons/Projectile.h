@@ -18,6 +18,8 @@ class QUARRY_API AProjectile : public AActor
 public:	
 	// Sets default values for this actor's properties
 	AProjectile();
+	
+	void InitBallistics(float Speed, float GravityScale);
 
 protected:
 	// Called when the game starts or when spawned

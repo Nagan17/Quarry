@@ -45,6 +45,7 @@ protected:
 	virtual void OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual FVector GetAimPoint() const override;
+	virtual TOptional<FVector> GetShotOriginOverride() const override;
 	
 	//ADS Scope
 	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
@@ -70,6 +71,9 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ADS")
 	TObjectPtr<USceneCaptureComponent2D> ScopeCapture;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS")
+	float ScopeSpawnForwardOffset = 30.f;
 	
 	UPROPERTY() 
 	TObjectPtr<UUserWidget> ScopeWidget;
@@ -100,6 +104,48 @@ protected:
 	void UpdateADSCamera(float DeltaTime);
 	void SetFirstPersonHidden(bool bHide);
 	void ZoomInput(const FInputActionValue& Value);
+	
+	//Scope Sway
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float IdleSwayAmount = 0.12f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float IdleSwaySpeed  = 0.8f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float MoveSwayAmount = 0.7f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float MoveSwaySpeed  = 7.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float CrouchSwayMultiplier = 0.5f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float SwayBlendSpeed = 6.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float CycleShakeAmount    = 0.6f;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float CycleShakeFrequency = 12.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float WidgetPixelsPerDegree = 40.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "ADS|Sway")
+	float WidgetRollScale = 1.f;
+	
+	float IdlePhase = 0.f;
+	float MovePhase = 0.f;
+	float ShakeTime = 0.f;
+	float MoveSwayAlpha = 0.f;
+	float CycleShakeAlpha = 0.f;
+
+	void UpdateScopeSway(float DeltaTime);
+	void ResetScopeSway();
+
+	void ApplyScopeWidgetSway(const FRotator& Sway);
 	
 	//Input Handler
 	void Move(const FInputActionValue& Value);
