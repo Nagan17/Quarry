@@ -5,6 +5,8 @@
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 
 // Sets default values
 AProjectile::AProjectile()
@@ -19,6 +21,11 @@ AProjectile::AProjectile()
 	
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetupAttachment(SphereCollision);
+	
+	TrailComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TrailComponent"));
+	TrailComponent->SetupAttachment(SphereCollision);
+	TrailComponent->bAutoActivate = true;
+	
 	
 	MovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("MovementComponent"));
 	MovementComponent->UpdatedComponent = SphereCollision;
@@ -59,12 +66,34 @@ void AProjectile::BeginPlay()
 void AProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	FVector NormalImpulse, const FHitResult& Hit)
 {
+	if (bHasHit) return;
+	
+	bHasHit = true;
+	
 	if (OtherActor && OtherActor != this)
 	{
 		UGameplayStatics::ApplyPointDamage(OtherActor, Damage, GetVelocity().GetSafeNormal(),
 			Hit, GetInstigatorController(), this, DamageType);
 	}
 	
-	Destroy();
+	if (ImpactFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactFX, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
+	}
+	
+	SetActorLocation(Hit.ImpactPoint, false, nullptr, ETeleportType::TeleportPhysics);
+	RetireProjectile();
+}
+
+void AProjectile::RetireProjectile()
+{
+	MovementComponent->StopMovementImmediately();
+	MovementComponent->Deactivate();
+	SphereCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Mesh->SetVisibility(false);
+	
+	TrailComponent->Deactivate();
+	
+	SetLifeSpan(FMath::Max(TrailFadeTime, 0.01f));
 }
 

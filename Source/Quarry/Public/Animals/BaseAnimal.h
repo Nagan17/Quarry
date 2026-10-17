@@ -39,8 +39,9 @@ public:
 	void StartGettingUp();
 	
 	//Health
-	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	UPROPERTY(VisibleAnywhere, Category = "Health")
 	UHealthComponent* HealthComp;
+
 	
 	UFUNCTION()
 	virtual void HandleDeath(UHealthComponent* HealthComponent, AController* Contr);
@@ -63,11 +64,42 @@ protected:
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Animal|Posture")
 	EAnimalPosture Posture = EAnimalPosture::Standing;
 	
+	//Ragdoll
+	UPROPERTY(EditDefaultsOnly, Category="Health|Death")
+	float DeathMomentumScale = 1.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Health|Death")
+	float BulletImpulse = 3000.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Health|Death")
+	float RagdollLinearDamping = 0.05f;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Health|Death")
+	float StumbleTime = 0.6f;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Health|Death")
+	float StumbleDeceleration = 500.0f;
+	
+	//Health
+	UPROPERTY(EditDefaultsOnly, Category="Health")
+	float HurtCooldown = 0.5f;
+	
+	UFUNCTION()
+	void HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta);
+	
 private:
 	void SetPosture(EAnimalPosture NewPosture);
-	
 	float PlayPostureMontage(UAnimMontage* Montage);
 	
+	void StartRagdoll();
+	FTimerHandle DeathTimer;
+	bool bIsDying = false;
+	
+	FName LastHitBone = NAME_None;
+	FVector LastHitDirection = FVector::ZeroVector;
+	FVector LastHitLocation = FVector::ZeroVector;
+	
+	float LastHurtTime = -100.f;
+	
 	FTimerHandle PostureTimer;
-
 };

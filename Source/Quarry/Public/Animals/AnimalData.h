@@ -138,4 +138,16 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Rest")
 	float SleepingHearingMultiplier = 0.4f;
+	
+	//Hurt
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Hurt|Animation")
+	TSoftObjectPtr<UAnimMontage> HurtMontage;
+	
+	//Death
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Death|Animation")
+	TSoftObjectPtr<UAnimMontage> DeathMontage;
+	
+	//Bone
+	UPROPERTY(EditDefaultsOnly, Category = "Bone")
+	FName FallbackBoneName = "";
 };

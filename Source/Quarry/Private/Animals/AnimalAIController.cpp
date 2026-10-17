@@ -9,7 +9,8 @@
 #include "Perception/AISenseConfig_Hearing.h"
 #include "Perception/AISense_Sight.h"
 #include "Perception/AISense_Hearing.h"
-#include "BehaviorTree/BehaviorTree.h"
+#include "Perception/AISenseConfig_Damage.h"
+#include "Perception/AISense_Damage.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "GameFramework/Character.h"
 #include "DrawDebugHelpers.h"
@@ -45,8 +46,12 @@ AAnimalAIController::AAnimalAIController()
 	HearingConfig->DetectionByAffiliation.bDetectFriendlies = true;
 	HearingConfig->DetectionByAffiliation.bDetectNeutrals = true;
 	
+	DamageConfig = CreateDefaultSubobject<UAISenseConfig_Damage>(TEXT("DamageConfig"));
+	DamageConfig->SetMaxAge(5.0f);
+	
 	AnimalPerception->ConfigureSense(*SightConfig);
 	AnimalPerception->ConfigureSense(*HearingConfig);
+	AnimalPerception->ConfigureSense(*DamageConfig);
 	AnimalPerception->SetDominantSense(SightConfig->GetSenseImplementation());
 }
 
@@ -146,6 +151,14 @@ void AAnimalAIController::OnTargetPerceptionUpdate(AActor* Actor, FAIStimulus St
 		SetThreat(Actor, Stimulus.StimulusLocation);
 		TImeSinceStimulus = 0;
 	}
+	else if (Stimulus.Type == UAISense::GetSenseID<UAISense_Damage>())
+	{
+		if (!Stimulus.WasSuccessfullySensed()) return;
+		
+		Awareness = 1.0f;
+		SetThreat(Actor, Stimulus.StimulusLocation);
+		TImeSinceStimulus = 0;
+	}
 }
 
 void AAnimalAIController::ConfigureSensesFromData(const UAnimalData* Data)
@@ -157,6 +170,7 @@ void AAnimalAIController::ConfigureSensesFromData(const UAnimalData* Data)
 	
 	AnimalPerception->ConfigureSense(*SightConfig);
 	AnimalPerception->ConfigureSense(*HearingConfig);
+	AnimalPerception->ConfigureSense(*DamageConfig);
 	AnimalPerception->RequestStimuliListenerUpdate();
 }
 

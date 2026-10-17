@@ -9,6 +9,8 @@
 class USphereComponent;
 class UProjectileMovementComponent;
 class UStaticMeshComponent;
+class UNiagaraComponent;
+class UNiagaraSystem;
 
 UCLASS()
 class QUARRY_API AProjectile : public AActor
@@ -39,8 +41,21 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category="Projectile")
 	TSubclassOf<UDamageType> DamageType;
+	
+	UPROPERTY(VisibleAnywhere, Category="Projectile|FX")
+	TObjectPtr<UNiagaraComponent> TrailComponent;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Projectile|FX")
+	TObjectPtr<UNiagaraSystem> ImpactFX;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Projectile|FX", meta=(ClampMin=0.0f))
+	float TrailFadeTime = 1.5f;
 
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
+	private:
+	void RetireProjectile();
+	
+	bool bHasHit = false;
 };

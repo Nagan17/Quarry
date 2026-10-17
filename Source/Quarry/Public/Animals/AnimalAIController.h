@@ -11,6 +11,7 @@
 class UAIPerceptionComponent;
 class UAISenseConfig_Sight;
 class UAISenseConfig_Hearing;
+class UAISenseConfig_Damage;
 class ABaseAnimal;
 
 /**
@@ -55,6 +56,9 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, Category = "AI")
 	TObjectPtr<UAISenseConfig_Hearing> HearingConfig;
+	
+	UPROPERTY(VisibleAnywhere, Category = "AI")
+	TObjectPtr<UAISenseConfig_Damage> DamageConfig;
 	
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool bDrawDebugAwareness = false;

@@ -2,12 +2,13 @@
 
 
 #include "Animals/BaseAnimal.h"
-
 #include <Components/HealthComponent.h>
-
+#include "BrainComponent.h"
 #include "Animals/AnimalAIController.h"
+#include "Components/CapsuleComponent.h"
 #include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Perception/AISense_Damage.h"
 
 // Sets default values
 ABaseAnimal::ABaseAnimal()
@@ -79,6 +80,35 @@ void ABaseAnimal::StartGettingUp()
 
 void ABaseAnimal::HandleDeath(UHealthComponent* HealthComponent, AController* Contr)
 {
+	if (bIsDying) return;
+	bIsDying = true;
+	
+	const FVector Velocity = GetCharacterMovement()->Velocity;
+	
+	GetWorldTimerManager().ClearTimer(PostureTimer);
+	StopAnimMontage();
+	if (AAIController* AIC = Cast<AAIController>(GetController()))
+	{
+		if (UBrainComponent* Brain = AIC->GetBrainComponent())
+		{
+			Brain->StopLogic(TEXT("Dead"));
+		}
+	}
+	
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	Move->Velocity = Velocity;
+	Move->BrakingFrictionFactor = 0.0f;
+	Move->BrakingDecelerationWalking = StumbleDeceleration;
+	Move->bRunPhysicsWithNoController = true;
+	
+	StopAnimMontage();
+	float Delay = StumbleTime;
+	if (AnimalData && AnimalData->DeathMontage.Get())
+	{
+		PlayAnimMontage(AnimalData->DeathMontage.Get());
+	}
+	
+	GetWorldTimerManager().SetTimer(DeathTimer, this, &ABaseAnimal::StartRagdoll, FMath::Max(Delay, 0.01f), false);
 	
 }
 
@@ -88,12 +118,27 @@ float ABaseAnimal::TakeDamage(float DamageAmount, FDamageEvent const& DamageEven
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
 		const auto& PointEvent = static_cast<const FPointDamageEvent&>(DamageEvent);
+		
+		LastHitBone      = PointEvent.HitInfo.BoneName;
+		LastHitLocation  = PointEvent.HitInfo.ImpactPoint;
+		LastHitDirection = PointEvent.ShotDirection;
+		
 		if (const float* Mult = BoneDamageMultipliers.Find(PointEvent.HitInfo.BoneName))
 		{
 			DamageAmount *= *Mult;
 		}
 	}
-	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	
+	const float Actual = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	
+	if (Actual > 0.0f && !HealthComp->IsDead())
+	{
+		AActor* Shooter = (EventInstigator && EventInstigator->GetPawn()) ? EventInstigator->GetPawn() : DamageCauser;
+		
+		UAISense_Damage::ReportDamageEvent(GetWorld(), this, Shooter, Actual, Shooter ? Shooter->GetActorLocation() : GetActorLocation(), GetActorLocation());
+	}
+	
+	return Actual;
 }
 
 // Called when the game starts or when spawned
@@ -102,8 +147,22 @@ void ABaseAnimal::BeginPlay()
 	Super::BeginPlay();
 	
 	HealthComp->OnDeath.AddUniqueDynamic(this, &ABaseAnimal::HandleDeath);
+	HealthComp->OnHealthChanged.AddUniqueDynamic(this, &ABaseAnimal::HandleHealthChanged);
 	
 	SetRunning(false);
+}
+
+void ABaseAnimal::HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta)
+{
+	if (Delta >= 0 || HealthComp->IsDead()) return;
+	
+	if (!IsStanding())
+	{
+		StartGettingUp();
+	}
+	
+	bIsGrazing = false;
+	SetRunning(true);
 }
 
 void ABaseAnimal::SetPosture(EAnimalPosture NewPosture)
@@ -114,5 +173,33 @@ void ABaseAnimal::SetPosture(EAnimalPosture NewPosture)
 float ABaseAnimal::PlayPostureMontage(UAnimMontage* Montage)
 {
 	return Montage ? PlayAnimMontage(Montage) : 0.0f;
+}
+
+void ABaseAnimal::StartRagdoll()
+{
+	const FVector CarryVelocity = GetCharacterMovement()->Velocity * DeathMomentumScale;
+	
+	DetachFromControllerPendingDestroy();
+	
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	Move->StopMovementImmediately();
+	Move->DisableMovement();
+	Move->SetComponentTickEnabled(false);
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	
+	USkeletalMeshComponent* SkelMesh = GetMesh();
+	SkelMesh->SetCollisionProfileName(TEXT("Ragdoll"));
+	SkelMesh->SetAllBodiesSimulatePhysics(true);
+	SkelMesh->SetSimulatePhysics(true);
+	SkelMesh->WakeAllRigidBodies();
+	SkelMesh->bBlendPhysics = true;
+	SkelMesh->SetLinearDamping(RagdollLinearDamping);
+	SkelMesh->SetAllPhysicsLinearVelocity(CarryVelocity);
+
+	if (!LastHitDirection.IsNearlyZero())
+	{
+		const FName Bone = (LastHitBone != NAME_None) ? LastHitBone : AnimalData->FallbackBoneName;
+		SkelMesh->AddImpulseAtLocation(LastHitDirection * BulletImpulse, LastHitLocation, Bone);
+	}
 }
 
