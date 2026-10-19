@@ -45,16 +45,20 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category="Projectile|FX")
 	TObjectPtr<UNiagaraComponent> TrailComponent;
 	
+	UPROPERTY(EditDefaultsOnly, Category="Projectile|FX", meta=(ClampMin=0.0f))
+	float TrailFadeTime = 1.5f;
+	
 	UPROPERTY(EditDefaultsOnly, Category="Projectile|FX")
 	TObjectPtr<UNiagaraSystem> ImpactFX;
 	
-	UPROPERTY(EditDefaultsOnly, Category="Projectile|FX", meta=(ClampMin=0.0f))
-	float TrailFadeTime = 1.5f;
+	UPROPERTY(EditDefaultsOnly, Category="Projectile|FX")
+	TMap<TEnumAsByte<EPhysicalSurface>, TObjectPtr<UNiagaraSystem>> ImpactFXBySurface;
 
 	UFUNCTION()
 	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	private:
+	void SpawnImpactFX(const AActor* OtherActor, const FHitResult& Hit) const;
 	void RetireProjectile();
 	
 	bool bHasHit = false;

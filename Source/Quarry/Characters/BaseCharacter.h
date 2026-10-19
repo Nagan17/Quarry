@@ -50,13 +50,15 @@ public:
 	virtual void SetAiming(bool bNewAiming);
 	
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void SetArmed(bool bNewArmed);
+	virtual void SetArmed(bool bNewArmed);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void ToggleArmed();
 	
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	virtual void Fire();
+	
+	void ExecuteFire();
 	
 	//Weapon
 	UFUNCTION(BlueprintCallable, Category="Combat")
@@ -135,6 +137,17 @@ protected:
 	
 	void HandleWeaponStateChanged(EWeaponState NewState);
 	void FaceAimDirection();
+	
+	//Hip-Fire
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Animaiton")
+	FName FireNotifyName = TEXT("Fire");
+
+	bool bFirePending = false;
+	
+	UFUNCTION()
+	void OnFireMontageNotify(FName NotifyName, const FBranchingPointNotifyPayload& Payload);
+
+	void OnFireMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
 	
 public:	
 	// Called every frame

@@ -11,6 +11,7 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Weapons/Weapon.h"
+#include "Widgets/CrosshairWidget.h"
 
 
 APlayerCharacter::APlayerCharacter()
@@ -75,7 +76,15 @@ void APlayerCharacter::NotifyControllerChanged()
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
+		
+		if (!CrosshairWidget && CrosshairWidgetClass && IsLocallyControlled())
+		{
+			CrosshairWidget = CreateWidget<UCrosshairWidget>(PC, CrosshairWidgetClass);
+			CrosshairWidget->AddToViewport();
+		}
 	}
+	
+	UpdateCrosshair();
 }
 
 void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -144,6 +153,8 @@ void APlayerCharacter::SetAiming(bool bNewAiming)
 	{
 		StopADS();
 	}
+	
+	UpdateCrosshair();
 }
 
 void APlayerCharacter::OnStartCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust)
@@ -200,6 +211,26 @@ TOptional<FVector> APlayerCharacter::GetShotOriginOverride() const
 	}
 	
 	return Desired;
+}
+
+void APlayerCharacter::SetArmed(bool bNewArmed)
+{
+	Super::SetArmed(bNewArmed);
+	UpdateCrosshair();
+}
+
+void APlayerCharacter::UpdateCrosshair()
+{
+	if (!CrosshairWidget) return;
+	
+	if (bIsAiming)
+	{
+		CrosshairWidget->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
+	
+	CrosshairWidget->SetArmedStyle(bIsArmed);
+	CrosshairWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
 }
 
 void APlayerCharacter::StartADS()

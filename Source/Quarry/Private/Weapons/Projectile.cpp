@@ -7,6 +7,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Components/BloodComponent.h"
 
 // Sets default values
 AProjectile::AProjectile()
@@ -17,6 +18,7 @@ AProjectile::AProjectile()
 	SphereCollision = CreateDefaultSubobject<USphereComponent>("SphereCollision");
 	SphereCollision->InitSphereRadius(1.5f);
 	SphereCollision->SetCollisionProfileName(TEXT("Projectile"));
+	SphereCollision->bReturnMaterialOnMove = true;
 	SetRootComponent(SphereCollision);
 	
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
@@ -76,13 +78,30 @@ void AProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimi
 			Hit, GetInstigatorController(), this, DamageType);
 	}
 	
-	if (ImpactFX)
-	{
-		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ImpactFX, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
-	}
+	SpawnImpactFX(OtherActor, Hit);
 	
 	SetActorLocation(Hit.ImpactPoint, false, nullptr, ETeleportType::TeleportPhysics);
 	RetireProjectile();
+}
+
+void AProjectile::SpawnImpactFX(const AActor* OtherActor, const FHitResult& Hit) const
+{
+	if (OtherActor && OtherActor->FindComponentByClass<UBloodComponent>())
+	{
+		return;
+	}
+	
+	UNiagaraSystem* FX = ImpactFX;
+	const EPhysicalSurface Surface = UPhysicalMaterial::DetermineSurfaceType(Hit.PhysMaterial.Get());
+	if (const TObjectPtr<UNiagaraSystem>* Found = ImpactFXBySurface.Find(Surface))
+	{
+		FX = *Found;
+	}
+	
+	if (FX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), FX, Hit.ImpactPoint, Hit.ImpactNormal.Rotation());
+	}
 }
 
 void AProjectile::RetireProjectile()

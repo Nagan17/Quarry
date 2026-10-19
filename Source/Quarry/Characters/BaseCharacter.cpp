@@ -94,15 +94,20 @@ void ABaseCharacter::SetAiming(bool bNewAiming)
 
 void ABaseCharacter::SetArmed(bool bNewArmed)
 {
-	if (!bIsArmed)
-	{
-		EquippedWeapon->CancelAction();
-		GetMesh()->GetAnimInstance()->StopAllMontages(0.2f);
-	}
-	
 	if (!EquippedWeapon || bIsArmed == bNewArmed)
 	{
 		return;
+	}
+	
+	bFirePending = false;
+	
+	if (!bIsArmed)
+	{
+		EquippedWeapon->CancelAction();
+		if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
+		{
+			Anim->StopAllMontages(0.2f);
+		}
 	}
 
 	bIsArmed = bNewArmed;
@@ -122,23 +127,35 @@ void ABaseCharacter::ToggleArmed()
 
 void ABaseCharacter::Fire()
 {
-	if (!bIsArmed || !FireMontage)
+	if (!bIsArmed || !EquippedWeapon || bFirePending) return;
+	
+	if (EquippedWeapon->GetState() != EWeaponState::Ready) return;
+	
+	if (!EquippedWeapon->CanFire())
 	{
+		EquippedWeapon->TryFire(GetAimPoint(), bIsAiming, GetShotOriginOverride());
 		return;
 	}
 	
-	if (!bIsAiming)
-	{
-		FaceAimDirection();
-	}
+	UAnimInstance* Anim = GetMesh()->GetAnimInstance();
 	
-	if (EquippedWeapon->TryFire(GetAimPoint(), bIsAiming, GetShotOriginOverride()) && FireMontage)
+	if (bIsAiming || !Anim || !FireMontage)
 	{
-		if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
+		if (EquippedWeapon->TryFire(GetAimPoint(), bIsAiming, GetShotOriginOverride()) && Anim && FireMontage)
 		{
 			Anim->Montage_Play(FireMontage);
 		}
+		return;
 	}
+	
+	//Hip-Fire
+	FaceAimDirection();
+	bFirePending = true;
+	Anim->Montage_Play(FireMontage);
+
+	FOnMontageBlendingOutStarted BlendOut;
+	BlendOut.BindUObject(this, &ABaseCharacter::OnFireMontageBlendingOut);
+	Anim->Montage_SetBlendingOutDelegate(BlendOut, FireMontage);
 }
 
 void ABaseCharacter::Reload()
@@ -155,6 +172,11 @@ void ABaseCharacter::BeginPlay()
 	Super::BeginPlay();
 	
 	HealthComp->OnDeath.AddUniqueDynamic(this, &ABaseCharacter::HandleDeath);
+	
+	if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
+	{
+		Anim->OnPlayMontageNotifyBegin.AddUniqueDynamic(this, &ABaseCharacter::OnFireMontageNotify);
+	}
 	
 	UCharacterMovementComponent* Move = GetCharacterMovement();
 	Move->GetNavAgentPropertiesRef().bCanCrouch = true;
@@ -283,6 +305,31 @@ void ABaseCharacter::HandleWeaponStateChanged(EWeaponState NewState)
 void ABaseCharacter::FaceAimDirection()
 {
 	SetActorRotation(FRotator(0, GetControlRotation().Yaw, 0));
+}
+
+void ABaseCharacter::ExecuteFire()
+{
+	if (!bIsArmed || !EquippedWeapon) return;
+	
+	EquippedWeapon->TryFire(GetAimPoint(), bIsAiming, GetShotOriginOverride());
+}
+
+void ABaseCharacter::OnFireMontageNotify(FName NotifyName, const FBranchingPointNotifyPayload& Payload)
+{
+	if (NotifyName != FireNotifyName || !bFirePending) return;
+
+	bFirePending = false;
+	if (!bIsAiming)
+	{
+		FaceAimDirection();
+	}
+	
+	ExecuteFire();
+}
+
+void ABaseCharacter::OnFireMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted)
+{
+	bFirePending = false;
 }
 
 // Called every frame

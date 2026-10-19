@@ -5,6 +5,7 @@
 #include <Components/HealthComponent.h>
 #include "BrainComponent.h"
 #include "Animals/AnimalAIController.h"
+#include "Components/BloodComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/DamageEvents.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -17,6 +18,9 @@ ABaseAnimal::ABaseAnimal()
 	PrimaryActorTick.bCanEverTick = false;
 	
 	HealthComp = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+	
+	BloodComp = CreateDefaultSubobject<UBloodComponent>(TEXT("BloodComponent"));
+	GetMesh()->SetReceivesDecals(false);
 	
 	AIControllerClass = AAnimalAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
@@ -83,6 +87,8 @@ void ABaseAnimal::HandleDeath(UHealthComponent* HealthComponent, AController* Co
 	if (bIsDying) return;
 	bIsDying = true;
 	
+	BloodComp->OnDeath();
+	
 	const FVector Velocity = GetCharacterMovement()->Velocity;
 	
 	GetWorldTimerManager().ClearTimer(PostureTimer);
@@ -109,7 +115,6 @@ void ABaseAnimal::HandleDeath(UHealthComponent* HealthComponent, AController* Co
 	}
 	
 	GetWorldTimerManager().SetTimer(DeathTimer, this, &ABaseAnimal::StartRagdoll, FMath::Max(Delay, 0.01f), false);
-	
 }
 
 float ABaseAnimal::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
@@ -131,6 +136,11 @@ float ABaseAnimal::TakeDamage(float DamageAmount, FDamageEvent const& DamageEven
 	
 	const float Actual = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 	
+	if (Actual > 0.0f && DamageEvent.IsOfType(FPointDamageEvent::ClassID))
+	{
+		BloodComp->OnPointHit(LastHitLocation, LastHitDirection, LastHitBone, Actual);
+	}
+	
 	if (Actual > 0.0f && !HealthComp->IsDead())
 	{
 		AActor* Shooter = (EventInstigator && EventInstigator->GetPawn()) ? EventInstigator->GetPawn() : DamageCauser;
@@ -145,6 +155,11 @@ float ABaseAnimal::TakeDamage(float DamageAmount, FDamageEvent const& DamageEven
 void ABaseAnimal::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	if (AnimalData)
+	{
+		BloodComp->Init(AnimalData->Blood, GetMesh(), AnimalData->FallbackBoneName);
+	}
 	
 	HealthComp->OnDeath.AddUniqueDynamic(this, &ABaseAnimal::HandleDeath);
 	HealthComp->OnHealthChanged.AddUniqueDynamic(this, &ABaseAnimal::HandleHealthChanged);

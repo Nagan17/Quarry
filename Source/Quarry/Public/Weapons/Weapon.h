@@ -40,6 +40,7 @@ public:
 	bool TryFire(const FVector& AimPoint, bool bAiming, TOptional<FVector> OriginOverride = {});
 	bool TryReload();
 	void CancelAction();
+	bool CanFire() const { return State == EWeaponState::Ready && bRoundChambered; }
 	
 	EWeaponState GetState() const { return State; }
 	UAnimMontage* GetCycleMontage()  const { return CycleMontage; }

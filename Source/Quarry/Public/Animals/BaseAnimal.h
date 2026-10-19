@@ -9,6 +9,7 @@
 
 class UHealthComponent;
 class UAnimalData;
+class UBloodComponent;
 
 UCLASS(Abstract)
 class QUARRY_API ABaseAnimal : public ACharacter
@@ -42,6 +43,8 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Health")
 	UHealthComponent* HealthComp;
 
+	UPROPERTY(VisibleAnywhere, Category="Health")
+	TObjectPtr<UBloodComponent> BloodComp;
 	
 	UFUNCTION()
 	virtual void HandleDeath(UHealthComponent* HealthComponent, AController* Contr);

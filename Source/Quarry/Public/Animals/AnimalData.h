@@ -36,6 +36,7 @@ enum class EAnimalPosture : uint8
 
 class UAnimMontage;
 class UBehaviorTree;
+class UBloodData;
 
 /**
  * 
@@ -142,6 +143,9 @@ public:
 	//Hurt
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Hurt|Animation")
 	TSoftObjectPtr<UAnimMontage> HurtMontage;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Hurt")
+	TObjectPtr<UBloodData> Blood;
 	
 	//Death
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Death|Animation")

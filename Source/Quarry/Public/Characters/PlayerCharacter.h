@@ -9,6 +9,7 @@
 #include "Blueprint/UserWidget.h"
 #include "PlayerCharacter.generated.h"
 
+class UCrosshairWidget;
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
@@ -46,6 +47,16 @@ protected:
 	virtual void OnEndCrouch(float HalfHeightAdjust, float ScaledHalfHeightAdjust) override;
 	virtual FVector GetAimPoint() const override;
 	virtual TOptional<FVector> GetShotOriginOverride() const override;
+	virtual void SetArmed(bool bNewArmed) override;
+	
+	//Crosshair
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UCrosshairWidget> CrosshairWidgetClass;
+	
+	UPROPERTY() 
+	TObjectPtr<UCrosshairWidget> CrosshairWidget;
+	
+	void UpdateCrosshair();
 	
 	//ADS Scope
 	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
@@ -61,7 +72,7 @@ protected:
 	float ScopedSensitivityMultiplier = 1.0f;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
-	float   ADSDuration = 0.3f;
+	float ADSDuration = 0.3f;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "ADS") 
 	FName ScopeEyeSocket = TEXT("ScopeEyeSocket");
