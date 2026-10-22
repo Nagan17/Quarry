@@ -87,6 +87,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category= "Blood|Death")
 	float PoolDelay = 2.5f;
 	
+	UPROPERTY(EditDefaultsOnly, Category="Blood|Death", meta=(ClampMin="0.01", ClampMax="1"))
+	float PoolStartScale = 0.15f;
+
+	UPROPERTY(EditDefaultsOnly, Category="Blood|Death", meta=(ClampMin="0.1"))
+	float PoolGrowTime = 8.f;
+	
 	//Lifetime
 	UPROPERTY(EditDefaultsOnly, Category= "Blood|Decals")
 	float DecalLifetime = 90.0f;

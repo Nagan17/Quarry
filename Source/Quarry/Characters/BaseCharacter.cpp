@@ -73,7 +73,7 @@ void ABaseCharacter::ToggleCrouch()
 
 void ABaseCharacter::SetAiming(bool bNewAiming)
 {
-	if (bNewAiming && (!bIsArmed || GetCharacterMovement()->IsFalling())) return;
+	if (bNewAiming && (bIsDead || !bIsArmed || GetCharacterMovement()->IsFalling())) return;
 	if (bIsAiming == bNewAiming) return;
 
 	bIsAiming = bNewAiming;
@@ -127,7 +127,7 @@ void ABaseCharacter::ToggleArmed()
 
 void ABaseCharacter::Fire()
 {
-	if (!bIsArmed || !EquippedWeapon || bFirePending) return;
+	if (bIsDead || !bIsArmed || !EquippedWeapon || bFirePending) return;
 	
 	if (EquippedWeapon->GetState() != EWeaponState::Ready) return;
 	
@@ -160,7 +160,7 @@ void ABaseCharacter::Fire()
 
 void ABaseCharacter::Reload()
 {
-	if (bIsArmed && EquippedWeapon)
+	if (!bIsDead && bIsArmed && EquippedWeapon)
 	{
 		EquippedWeapon->TryReload();
 	}
@@ -172,7 +172,8 @@ void ABaseCharacter::BeginPlay()
 	Super::BeginPlay();
 	
 	HealthComp->OnDeath.AddUniqueDynamic(this, &ABaseCharacter::HandleDeath);
-	
+	HealthComp->OnHealthChanged.AddUniqueDynamic(this, &ABaseCharacter::HandleHealthChanged);
+
 	if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
 	{
 		Anim->OnPlayMontageNotifyBegin.AddUniqueDynamic(this, &ABaseCharacter::OnFireMontageNotify);
@@ -205,22 +206,105 @@ void ABaseCharacter::UpdateMovementSpeed()
 
 void ABaseCharacter::HandleDeath(UHealthComponent* HealthComponent, AController* Contr)
 {
+	if (bIsDead) return;
+	bIsDead = true;
 	
+	bFirePending = false;
+	
+	if (bIsAiming)
+	{
+		SetAiming(false);
+	}
+	
+	bIsSprinting = false;
+	
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->CancelAction();
+	}
+	
+	UCharacterMovementComponent* Move = GetCharacterMovement();
+	Move->StopMovementImmediately();
+	Move->DisableMovement();
+	
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+
+	float Delay = 0.0f;
+	if (UAnimInstance* Anim = GetMesh()->GetAnimInstance())
+	{
+		Anim->StopAllMontages(0.1f);
+		if (DeathMontage)
+		{
+			Delay = Anim->Montage_Play(DeathMontage);
+		}
+	}
+	
+	if (bRagdollOnDeath)
+	{
+		const float RagdollTime = FMath::Max(Delay - 0.15f, 0.01f);
+		GetWorldTimerManager().SetTimer(DeathTimer, this, &ABaseCharacter::StartRagdoll, RagdollTime, false);
+	}
 }
 
-float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
-	AActor* DamageCauser)
+void ABaseCharacter::HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta)
 {
+	if (Delta >= 0.0f || bIsDead || HealthComp->IsDead()) return;
+
+	if (bHurtBreaksAim && bIsAiming)
+	{
+		SetAiming(false);
+	}
+	
+	const bool bWeaponBusy = EquippedWeapon && EquippedWeapon->GetState() != EWeaponState::Ready;
+
+	if (HurtMontages.Num() > 0 && !bWeaponBusy)
+	{
+		if (UAnimMontage* Hurt = HurtMontages[FMath::RandRange(0, HurtMontages.Num() - 1)])
+		{
+			bFirePending = false; // a hip-fire that was winding up gets interrupted
+			PlayAnimMontage(Hurt);
+		}
+	}
+	
+	OnHurt(-Delta);
+}
+
+float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	if (bIsDead) return 0.0f;
+	
+	const float Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastHurtTime < HurtCooldown) return 0.0f;
+	
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
 		const auto& PointEvent = static_cast<const FPointDamageEvent&>(DamageEvent);
 		if (const float* Mult = BoneDamageMultipliers.Find(PointEvent.HitInfo.BoneName))
 		{
-			DamageAmount = *Mult;
+			DamageAmount *= *Mult;
 		}
 	}
 	
-	return Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	const float Actual = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	if (Actual > 0.0f)
+	{
+		LastHurtTime = Now;
+	}
+	return Actual;
+}
+
+void ABaseCharacter::StartRagdoll()
+{
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	USkeletalMeshComponent* SkelMesh = GetMesh();
+	SkelMesh->SetCollisionProfileName(TEXT("Ragdoll"));
+	SkelMesh->SetAllBodiesSimulatePhysics(true);
+	SkelMesh->SetSimulatePhysics(true);
+	SkelMesh->WakeAllRigidBodies();
+	SkelMesh->bBlendPhysics = true;
+	SkelMesh->SetLinearDamping(0.3f);
+	SkelMesh->SetAngularDamping(2.0f);
 }
 
 void ABaseCharacter::Destroyed()
@@ -343,6 +427,5 @@ void ABaseCharacter::Tick(float DeltaTime)
 void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
 }
 

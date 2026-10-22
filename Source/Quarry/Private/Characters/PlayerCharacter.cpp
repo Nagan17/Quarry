@@ -12,7 +12,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Weapons/Weapon.h"
 #include "Widgets/CrosshairWidget.h"
-
+#include "Camera/CameraShakeBase.h"
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -219,9 +219,40 @@ void APlayerCharacter::SetArmed(bool bNewArmed)
 	UpdateCrosshair();
 }
 
+void APlayerCharacter::HandleDeath(UHealthComponent* HealthComponent, AController* Contr)
+{
+	if (bIsDead) return;
+	
+	Super::HandleDeath(HealthComponent, Contr);
+	
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		DisableInput(PC);
+	}
+
+	UpdateCrosshair();
+}
+
+void APlayerCharacter::OnHurt(float DamageTaken)
+{
+	if (!HurtCameraShake) return;
+	
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	{
+		const float Scale = FMath::Clamp(DamageTaken / HurtShakeDamageScale, 0.3f, 1.5f);
+		PC->ClientStartCameraShake(HurtCameraShake, Scale);
+	}
+}
+
 void APlayerCharacter::UpdateCrosshair()
 {
 	if (!CrosshairWidget) return;
+	
+	if (bIsDead)
+	{
+		CrosshairWidget->SetVisibility(ESlateVisibility::Collapsed);
+		return;
+	}
 	
 	if (bIsAiming)
 	{

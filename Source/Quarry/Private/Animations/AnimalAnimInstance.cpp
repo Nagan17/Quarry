@@ -44,4 +44,21 @@ void UAnimalAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	const EAnimalPosture Posture = Animal->GetPosture();
 	bIsResting  = (Posture == EAnimalPosture::LyingDown || Posture == EAnimalPosture::Resting);
 	bIsSleeping = (Posture == EAnimalPosture::Sleeping);
+	
+	if (const APawn* Pawn = TryGetPawnOwner())
+	{
+		const float Yaw = Pawn->GetActorRotation().Yaw;
+		float TargetRate = 0.0f;
+
+		if (bHasLastYaw && DeltaSeconds > KINDA_SMALL_NUMBER && Speed > MovingThreshold)
+		{
+			TargetRate = FMath::FindDeltaAngleDegrees(LastYaw, Yaw) / DeltaSeconds;
+			TargetRate = FMath::Clamp(TargetRate, -MaxTurnRate, MaxTurnRate);
+		}
+
+		LastYaw = Yaw;
+		bHasLastYaw = true;
+
+		TurnRate = FMath::FInterpTo(TurnRate, TargetRate, DeltaSeconds, TurnRateInterpSpeed);
+	}
 }

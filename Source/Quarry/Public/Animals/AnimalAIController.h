@@ -41,6 +41,10 @@ public:
 	
 	static const FName GunshotTag;
 	
+	//Wolf
+	void AlertToThreat(AActor* Threat, const FVector& Location);
+	
+	
 protected:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
@@ -71,6 +75,7 @@ private:
 	void AddAwareness(float Amount);
 	void SetThreat(AActor* Actor, const FVector& Location);
 	void DrawDebugAwareness() const;
+	void ForgetThreat();
 	
 	UPROPERTY()
 	TObjectPtr<const UAnimalData> AnimalData;
@@ -85,4 +90,8 @@ private:
 	float TImeSinceStimulus = 0.0f;
 	EAwarenessState AwarenessState = EAwarenessState::Calm;
 	FVector LastThreatLocation = FVector::ZeroVector;
+	
+	//Wolf
+	void UpdateScentAwareness(float DeltaTime);
+	float ScentTimer = 0.0f;
 };

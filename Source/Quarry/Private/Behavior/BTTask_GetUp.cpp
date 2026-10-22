@@ -25,7 +25,7 @@ EBTNodeResult::Type UBTTask_GetUp::ExecuteTask(UBehaviorTreeComponent& OwnerComp
 	if (Animal->IsStanding()) return EBTNodeResult::Succeeded;
 	
 	Animal->StartGettingUp();
-	return EBTNodeResult::Succeeded;
+	return EBTNodeResult::InProgress;
 }
 
 void UBTTask_GetUp::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)

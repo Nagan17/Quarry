@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-//#include "Characters/BaseCharacter.h"
 #include "Quarry/Characters/BaseCharacter.h"
 #include "InputActionValue.h"
 #include "Blueprint/UserWidget.h"
@@ -15,6 +14,7 @@ class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
 class USceneCaptureComponent2D;
+class UCameraShakeBase;
 
 UENUM()
 enum class EADSState : uint8 
@@ -48,6 +48,16 @@ protected:
 	virtual FVector GetAimPoint() const override;
 	virtual TOptional<FVector> GetShotOriginOverride() const override;
 	virtual void SetArmed(bool bNewArmed) override;
+	
+	//Health
+	virtual void HandleDeath(UHealthComponent* HealthComponent, AController* Contr) override;
+	virtual void OnHurt(float DamageTaken) override;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Health|Hurt")
+	TSubclassOf<UCameraShakeBase> HurtCameraShake;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Health|Hurt", meta = (ClampMin = "1"))
+	float HurtShakeDamageScale = 20.0f;
 	
 	//Crosshair
 	UPROPERTY(EditDefaultsOnly, Category = "UI")

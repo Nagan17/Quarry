@@ -14,12 +14,15 @@
 #include "BehaviorTree/BlackboardComponent.h"
 #include "GameFramework/Character.h"
 #include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "Components/HealthComponent.h"
 
 const FName AAnimalAIController::BB_ThreatActor(TEXT("ThreatActor"));
 const FName AAnimalAIController::BB_ThreatLocation(TEXT("ThreatLocation"));
 const FName AAnimalAIController::BB_AwarenessState(TEXT("AwarenessState"));
 const FName AAnimalAIController::GunshotTag(TEXT("Gunshot"));
+
 const FName AAnimalAIController::BB_HomeLocation(TEXT("HomeLocation"));
 const FName AAnimalAIController::BB_MoveTarget(TEXT("MoveTarget"));
 
@@ -63,11 +66,21 @@ void AAnimalAIController::Tick(float DeltaTime)
 	
 	TImeSinceStimulus += DeltaTime;
 	
+	if (UBlackboardComponent* BB = GetBlackboardComponent())
+	{
+		AActor* Threat = Cast<AActor>(BB->GetValueAsObject(BB_ThreatActor));
+		if (Threat && !IsThreat(Threat))
+		{
+			ForgetThreat();
+		}
+	}
+	
 	UpdateSightAwareness(DeltaTime);
+	UpdateScentAwareness(DeltaTime);
 	
 	if (TImeSinceStimulus > AnimalData->CalmDownDelay)
 	{
-		Awareness = FMath::Max(0, Awareness - AnimalData->AwarenessDecayPerSecond * DeltaTime);
+		Awareness = FMath::Max(0.0f, Awareness - AnimalData->AwarenessDecayPerSecond * DeltaTime);
 	}
 	
 	UpdateAwarenessState();
@@ -177,7 +190,13 @@ void AAnimalAIController::ConfigureSensesFromData(const UAnimalData* Data)
 bool AAnimalAIController::IsThreat(const AActor* Actor) const
 {
 	const APawn* ThreatPawn = Cast<APawn>(Actor);
-	return ThreatPawn && ThreatPawn->IsPlayerControlled();
+	if (!ThreatPawn || !ThreatPawn->IsPlayerControlled()) return false;
+
+	if (const UHealthComponent* Health = ThreatPawn->FindComponentByClass<UHealthComponent>())
+	{
+		if (Health->IsDead()) return false;
+	}
+	return true;
 }
 
 void AAnimalAIController::UpdateSightAwareness(float DeltaTime)
@@ -319,4 +338,52 @@ void AAnimalAIController::DrawDebugAwareness() const
 	}
 	
 #endif
+}
+
+void AAnimalAIController::ForgetThreat()
+{
+	VisibleThreat = nullptr;
+	Awareness = FMath::Min(Awareness, AnimalData->SuspiciousThreshold - 0.01f);
+
+	if (UBlackboardComponent* BB = GetBlackboardComponent())
+	{
+		BB->ClearValue(BB_ThreatActor);
+	}
+	
+	UpdateAwarenessState();
+}
+
+void AAnimalAIController::UpdateScentAwareness(float DeltaTime)
+{
+	if (AnimalData->ScentRange <= 0.0f || VisibleThreat) return;
+	
+	ScentTimer = AnimalData->ScentUpdateInterval;
+	
+	APawn* Player = UGameplayStatics::GetPlayerPawn(this, 0);
+	if (!Player || !IsThreat(Player)) return;
+	
+	const float Dist = FVector::Dist(Animal->GetActorLocation(), Player->GetActorLocation());
+	if (Dist > AnimalData->ScentRange) return;
+	
+	const float Strenght = 1.0f - Dist / AnimalData->ScentRange;
+	
+	const float Cap = AnimalData->AlarmedThreshold - 0.01f;
+	if (Awareness < Cap)
+	{
+		Awareness = FMath::Min(Cap, Awareness + AnimalData->ScentAwarenessPerSecond * AnimalData->ScentUpdateInterval * Strenght);
+	}
+	
+	const FVector2D Offset = FMath::RandPointInCircle(AnimalData->ScentLocationError * (1.0f - Strenght));
+	SetThreat(Player, Player->GetActorLocation() + FVector(Offset, 0.0f));
+	TImeSinceStimulus = 0.0f;
+}
+
+void AAnimalAIController::AlertToThreat(AActor* Threat, const FVector& Location)
+{
+	if (!AnimalData) return;
+	
+	Awareness = 1.0f;
+	TImeSinceStimulus = 0.0f;
+	SetThreat(Threat, Location);
+	UpdateAwarenessState();
 }

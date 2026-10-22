@@ -49,7 +49,8 @@ private:
 	void SpawnSpray(const FVector& Location, const FVector& Direction, FName Bone, float Intensity) const;
 	bool FindExitPoint(const FVector& Entry, const FVector& Dir, FHitResult& OutHit) const;
 	bool TraceGround(const FVector& From, FHitResult& OutHit) const;
-	void SpawnDecal(UMaterialInterface* Mat, const FVector& Location, const FRotator& Rotation, float Size);
+	UDecalComponent* SpawnDecal(UMaterialInterface* Mat, const FVector& Location, const FRotator& Rotation, float Size);
+	void UpdatePoolGrowth();
 	void SpawnDeathPool();
 	float GetCurrentBleed() const;
 
@@ -62,8 +63,11 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<USkeletalMeshComponent> Mesh;
-
+	
 	TArray<TWeakObjectPtr<UDecalComponent>> Decals;
+	TWeakObjectPtr<UDecalComponent> PoolDecalComp;
+	FTimerHandle PoolGrowTimer;
+	float PoolGrowStartTime = 0.f;
 
 	FName WoundBone = NAME_None;
 	FName PoolBone = NAME_None;

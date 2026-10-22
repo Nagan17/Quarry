@@ -3,11 +3,11 @@
 
 #include "Behavior/BTTask_FindFleePoint.h"
 #include "AIController.h"
-#include "AssetTypeCategories.h"
 #include "NavigationPath.h"
 #include "NavigationSystem.h"
 #include "Animals/AnimalAIController.h"
 #include "Animals/BaseAnimal.h"
+#include "DrawDebugHelpers.h"
 #include "BehaviorTree/BlackboardComponent.h"
 
 UBTTask_FindFleePoint::UBTTask_FindFleePoint()

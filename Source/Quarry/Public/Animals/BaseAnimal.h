@@ -78,6 +78,9 @@ protected:
 	float RagdollLinearDamping = 0.05f;
 	
 	UPROPERTY(EditDefaultsOnly, Category="Health|Death")
+	float RagdollAngularDamping = 2.0f;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Health|Death")
 	float StumbleTime = 0.6f;
 	
 	UPROPERTY(EditDefaultsOnly, Category="Health|Death")
@@ -87,8 +90,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Health")
 	float HurtCooldown = 0.5f;
 	
-	UFUNCTION()
-	void HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta);
+	virtual void HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta);
 	
 private:
 	void SetPosture(EAnimalPosture NewPosture);

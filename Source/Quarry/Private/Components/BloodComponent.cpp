@@ -55,10 +55,8 @@ void UBloodComponent::OnPointHit(const FVector& HitLocation, const FVector& Shot
 		FVector2D(Data->MinIntensity, Data->MaxIntensity),
 		Damage);
 
-	// Entry wound: sprays back toward the shooter
 	SpawnSpray(HitLocation, Dir.IsNearlyZero() ? FVector::UpVector : -Dir, Bone, Intensity);
 
-	// Exit wound: sprays on along the bullet's path, from the far side of the body
 	FVector SplashOrigin = HitLocation;
 	if (Data->bSpawnExitSpray && !Dir.IsNearlyZero())
 	{
@@ -70,7 +68,6 @@ void UBloodComponent::OnPointHit(const FVector& HitLocation, const FVector& Shot
 		}
 	}
 
-	// Splash on the ground, streaks pointing the way the bullet travelled
 	if (UMaterialInterface* SplashMat = PickRandom(Data->SplashDecals))
 	{
 		FHitResult Ground;
@@ -83,7 +80,6 @@ void UBloodComponent::OnPointHit(const FVector& HitLocation, const FVector& Shot
 		}
 	}
 
-	// Start / strengthen bleeding (a corpse being shot still sprays, but doesn't restart the trail)
 	if (bDead) return;
 
 	WoundBone = Bone;
@@ -98,10 +94,9 @@ void UBloodComponent::SpawnSpray(const FVector& Location, const FVector& Directi
 {
 	if (!Data || !Data->HitFX || !Mesh) return;
 
-	// Attached so the spray follows the running animal; the particles themselves simulate in world space.
 	UNiagaraComponent* FX = UNiagaraFunctionLibrary::SpawnSystemAttached(
 		Data->HitFX, Mesh, Bone, Location, Direction.Rotation(),
-		EAttachLocation::KeepWorldPosition, /*bAutoDestroy*/ true, /*bAutoActivate*/ false);
+		EAttachLocation::KeepWorldPosition, true, false);
 
 	if (!FX) return;
 
@@ -114,8 +109,6 @@ bool UBloodComponent::FindExitPoint(const FVector& Entry, const FVector& Dir, FH
 {
 	if (!Mesh || !Data) return false;
 
-	// Trace back from beyond the body toward the entry point, against this mesh only.
-	// The first surface hit from the far side is where the bullet would come out.
 	const FVector Start = Entry + Dir * Data->MaxBodyThickness;
 	const FVector End = Entry + Dir * 1.f;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(BloodExitTrace), false);
@@ -202,10 +195,17 @@ void UBloodComponent::SpawnDeathPool()
 
 	const FVector From = (PoolBone != NAME_None) ? Mesh->GetBoneLocation(PoolBone) : Mesh->GetComponentLocation();
 	FHitResult Ground;
-	if (TraceGround(From + FVector(0.f, 0.f, 50.f), Ground))
-	{
-		SpawnDecal(Data->PoolDecal, Ground.ImpactPoint, RandomDecalRotation(Ground.ImpactNormal), Data->PoolSize);
-	}
+	if (!TraceGround(From + FVector(0.f, 0.f, 50.f), Ground)) return;
+	
+	UDecalComponent* Pool = SpawnDecal(Data->PoolDecal, Ground.ImpactPoint, RandomDecalRotation(Ground.ImpactNormal), Data->PoolSize);
+	if (!Pool) return;
+	
+	Pool->SetWorldScale3D(FVector(1.f, Data->PoolStartScale, Data->PoolStartScale));
+	
+	PoolDecalComp = Pool;
+	PoolGrowStartTime = GetWorld()->GetTimeSeconds();
+	GetWorld()->GetTimerManager().SetTimer(PoolGrowTimer, this, &UBloodComponent::UpdatePoolGrowth, 0.033f, true);
+	
 }
 
 // ---------------------------------------------------------------------------
@@ -219,14 +219,14 @@ bool UBloodComponent::TraceGround(const FVector& From, FHitResult& OutHit) const
 		ECC_Visibility, Params);
 }
 
-void UBloodComponent::SpawnDecal(UMaterialInterface* Mat, const FVector& Location, const FRotator& Rotation, float Size)
+UDecalComponent* UBloodComponent::SpawnDecal(UMaterialInterface* Mat, const FVector& Location, const FRotator& Rotation, float Size)
 {
-	if (!Mat || !Data) return;
+	if (!Mat || !Data) nullptr;
 
-	// X is projection depth: keep it thin so decals don't wrap onto rocks or boots
 	UDecalComponent* Decal = UGameplayStatics::SpawnDecalAtLocation(
 		this, Mat, FVector(10.f, Size, Size), Location, Rotation);
-	if (!Decal) return;
+	
+	if (!Decal) nullptr;
 
 	Decal->SetFadeScreenSize(0.002f); // cull tiny far-away drops
 	Decal->SetFadeOut(Data->DecalLifetime, Data->DecalFadeTime, false); // also sets the lifespan
@@ -241,6 +241,29 @@ void UBloodComponent::SpawnDecal(UMaterialInterface* Mat, const FVector& Locatio
 			Decals[0]->DestroyComponent();
 		}
 		Decals.RemoveAt(0);
+	}
+	
+	return Decal;
+}
+
+void UBloodComponent::UpdatePoolGrowth()
+{
+	UDecalComponent* Pool = PoolDecalComp.Get();
+	if (!Pool || !Data)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(PoolGrowTimer);
+		return;
+	}
+	
+	const float Elasped = GetWorld()->GetTimeSeconds() - PoolGrowStartTime;
+	const float Alpha = FMath::Clamp(Elasped/Data->PoolGrowTime, 0.0f, 1.0f);
+	
+	const float Scale = FMath::InterpEaseOut(Data->PoolStartScale, 1.0f, Alpha, 2.0f);
+	Pool->SetWorldScale3D(FVector(1.0f, Scale, Scale));
+	
+	if (Alpha >= 1.0f)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(PoolGrowTimer);
 	}
 }
 

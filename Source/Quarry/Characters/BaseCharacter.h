@@ -65,7 +65,9 @@ public:
 	void Reload();
 	
 	virtual TOptional<FVector> GetShotOriginOverride() const { return {}; }
-
+	
+	UFUNCTION(BlueprintPure, Category = "Health")
+	bool IsDead() const { return bIsDead; }
 	
 protected:
 	// Called when the game starts or when spawned
@@ -104,16 +106,46 @@ protected:
 	bool bIsArmed = false;
 	
 	//Health
-	UPROPERTY(BlueprintReadOnly, Category = "Health")
+	UPROPERTY(VisibleAnywhere, Category = "Health")
 	UHealthComponent* HealthComp;
 	
 	UFUNCTION()
 	virtual void HandleDeath(UHealthComponent* HealthComponent, AController* Contr);
 	
+	UFUNCTION()
+	virtual void HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta);
+	
+	virtual void OnHurt(float DamageTaken) {}
+	
 	UPROPERTY(EditDefaultsOnly, Category="Health")
 	TMap<FName, float> BoneDamageMultipliers;
 	
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	
+	// Hurt
+	UPROPERTY(EditDefaultsOnly, Category = "Health|Hurt")
+	TArray<TObjectPtr<UAnimMontage>> HurtMontages;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health|Hurt", meta = (ClampMin = "0"))
+	float HurtCooldown = 0.6f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Health|Hurt")
+	bool bHurtBreaksAim = true;
+
+	// Death
+	UPROPERTY(EditDefaultsOnly, Category = "Health|Death")
+	TObjectPtr<UAnimMontage> DeathMontage;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Health|Death")
+	bool bRagdollOnDeath = true;
+
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = "Health")
+	bool bIsDead = false;
+
+	void StartRagdoll();
+
+	float LastHurtTime = -100.f;
+	FTimerHandle DeathTimer;
 	
 	//Weapon
 	virtual void Destroyed() override;

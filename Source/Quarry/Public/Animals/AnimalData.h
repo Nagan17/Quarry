@@ -83,6 +83,19 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Senses|Hearing")
 	float NoiseAwarenessScale = 0.5f;
 	
+	//Scent
+	UPROPERTY(EditDefaultsOnly, Category = "Senses|Scent", meta = (ClampMin = "0"))
+	float ScentRange = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Senses|Scent", meta = (ClampMin = "0"))
+	float ScentAwarenessPerSecond = 0.08f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Senses|Scent", meta = (ClampMin = "0"))
+	float ScentLocationError = 600.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Senses|Scent", meta = (ClampMin = "0.1"))
+	float ScentUpdateInterval = 2.0f;
+	
 	//Awareness
 	UPROPERTY(EditDefaultsOnly, Category = "Awareness")
 	float SightAwarenessPerSecond = 0.35f;

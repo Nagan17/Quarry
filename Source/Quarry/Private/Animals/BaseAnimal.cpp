@@ -109,9 +109,12 @@ void ABaseAnimal::HandleDeath(UHealthComponent* HealthComponent, AController* Co
 	
 	StopAnimMontage();
 	float Delay = StumbleTime;
-	if (AnimalData && AnimalData->DeathMontage.Get())
+	if (AnimalData)
 	{
-		PlayAnimMontage(AnimalData->DeathMontage.Get());
+		if (UAnimMontage* DeathAnim = AnimalData->DeathMontage.LoadSynchronous())
+		{
+			PlayAnimMontage(DeathAnim);
+		}
 	}
 	
 	GetWorldTimerManager().SetTimer(DeathTimer, this, &ABaseAnimal::StartRagdoll, FMath::Max(Delay, 0.01f), false);
@@ -209,11 +212,12 @@ void ABaseAnimal::StartRagdoll()
 	SkelMesh->WakeAllRigidBodies();
 	SkelMesh->bBlendPhysics = true;
 	SkelMesh->SetLinearDamping(RagdollLinearDamping);
+	SkelMesh->SetAngularDamping(RagdollAngularDamping);
 	SkelMesh->SetAllPhysicsLinearVelocity(CarryVelocity);
 
 	if (!LastHitDirection.IsNearlyZero())
 	{
-		const FName Bone = (LastHitBone != NAME_None) ? LastHitBone : AnimalData->FallbackBoneName;
+		const FName Bone = (LastHitBone != NAME_None) ? LastHitBone : (AnimalData ? AnimalData->FallbackBoneName : NAME_None);
 		SkelMesh->AddImpulseAtLocation(LastHitDirection * BulletImpulse, LastHitLocation, Bone);
 	}
 }

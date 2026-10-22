@@ -26,6 +26,15 @@ protected:
 	float Speed = 0.0f;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Animal|Locomotion")
+	float TurnRate = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animal|Locomotion")
+	float MaxTurnRate = 60.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animal|Locomotion")
+	float TurnRateInterpSpeed = 6.0f;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Animal|Locomotion")
 	bool bIsMoving = false;
 	
 	UPROPERTY(BlueprintReadOnly, Category = "Animal|Locomotion")
@@ -59,4 +68,6 @@ private:
 	UPROPERTY()
 	TObjectPtr<UCharacterMovementComponent> MoveComp;
 	
+	float LastYaw = 0.0f;
+	bool bHasLastYaw = false;
 };
