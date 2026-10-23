@@ -42,6 +42,12 @@ public:
 		return CurrentHealth <= 0.0f;
 	}
 	
+	UFUNCTION(BlueprintCallable)
+	float GetMaxHealth()
+	{
+		return MaxHealth;
+	}
+	
 	UFUNCTION(BlueprintCallable) 
 	void Heal(float Amount);
 protected:

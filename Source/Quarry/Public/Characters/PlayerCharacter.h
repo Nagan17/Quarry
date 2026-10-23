@@ -15,6 +15,7 @@ class UInputMappingContext;
 class UInputAction;
 class USceneCaptureComponent2D;
 class UCameraShakeBase;
+class UHUDWidget;
 
 UENUM()
 enum class EADSState : uint8 
@@ -48,6 +49,7 @@ protected:
 	virtual FVector GetAimPoint() const override;
 	virtual TOptional<FVector> GetShotOriginOverride() const override;
 	virtual void SetArmed(bool bNewArmed) override;
+	virtual void OnAmmoChanged(bool bChambered, int32 MagAmmo, int32 ReserveAmmo) override;
 	
 	//Health
 	virtual void HandleDeath(UHealthComponent* HealthComponent, AController* Contr) override;
@@ -167,6 +169,18 @@ protected:
 	void ResetScopeSway();
 
 	void ApplyScopeWidgetSway(const FRotator& Sway);
+	
+	//UI
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UHUDWidget> HUDWidgetClass;
+	
+	UPROPERTY()
+	TObjectPtr<UHUDWidget> HUDWidget;
+
+	void CreateHUD();
+	void RefreshAmmoHUD();
+
+	virtual void HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta) override;
 	
 	//Input Handler
 	void Move(const FInputActionValue& Value);

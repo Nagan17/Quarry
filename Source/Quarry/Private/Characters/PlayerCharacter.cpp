@@ -13,6 +13,8 @@
 #include "Weapons/Weapon.h"
 #include "Widgets/CrosshairWidget.h"
 #include "Camera/CameraShakeBase.h"
+#include "Components/HealthComponent.h"
+#include "Widgets/HUDWidget.h"
 
 APlayerCharacter::APlayerCharacter()
 {
@@ -39,6 +41,9 @@ APlayerCharacter::APlayerCharacter()
 void APlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+	
+	EquippedWeapon->OnAmmoChanged.AddUniqueDynamic(this, &APlayerCharacter::OnAmmoChanged);
+	
 	BoomBaseLocation = CameraBoom->GetRelativeLocation();
 	
 	DefaultFOV       = FollowCamera->FieldOfView;
@@ -46,6 +51,7 @@ void APlayerCharacter::BeginPlay()
 	
 	ScopeCapture->FOVAngle = ScopedFOV;
 	
+	CreateHUD();
 	UpdateMovementSpeed();
 }
 
@@ -217,6 +223,13 @@ void APlayerCharacter::SetArmed(bool bNewArmed)
 {
 	Super::SetArmed(bNewArmed);
 	UpdateCrosshair();
+}
+
+void APlayerCharacter::OnAmmoChanged(bool bChambered, int32 MagAmmo, int32 ReserveAmmo)
+{
+	Super::OnAmmoChanged(bChambered, MagAmmo, ReserveAmmo);
+	
+	RefreshAmmoHUD();
 }
 
 void APlayerCharacter::HandleDeath(UHealthComponent* HealthComponent, AController* Contr)
@@ -447,6 +460,40 @@ void APlayerCharacter::ApplyScopeWidgetSway(const FRotator& Sway)
 
 	ScopeWidget->SetRenderTranslation(FVector2D(Sway.Yaw, -Sway.Pitch) * WidgetPixelsPerDegree);
 	ScopeWidget->SetRenderTransformAngle(Sway.Roll * WidgetRollScale);
+}
+
+void APlayerCharacter::CreateHUD()
+{
+	if (HUDWidget || !HUDWidgetClass || !IsLocallyControlled()) { return; }
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC)
+	{
+		return;
+	}
+
+	HUDWidget = CreateWidget<UHUDWidget>(PC, HUDWidgetClass);
+	HUDWidget->AddToViewport();
+
+	HUDWidget->SetHealth(HealthComp->GetHealth(), HealthComp->GetMaxHealth());
+	//HUDWidget->SetStamina(Stamina, MaxStamina);
+	RefreshAmmoHUD();
+}
+
+void APlayerCharacter::RefreshAmmoHUD()
+{
+	if (!HUDWidget) { return; }
+	HUDWidget->SetAmmo(EquippedWeapon->GetCurrentAmmo(), EquippedWeapon->GetMaxCapacity(), EquippedWeapon->GetReserveAmmo());
+	HUDWidget->SetWeaponLabel(FText::FromString(TEXT(".308")));
+}
+
+void APlayerCharacter::HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta)
+{
+	Super::HandleHealthChanged(HealthComponent, NewHealth, Delta);
+	if (HUDWidget)
+	{
+		HUDWidget->SetHealth(NewHealth, HealthComp->GetMaxHealth());
+	}
 }
 
 void APlayerCharacter::Move(const FInputActionValue& Value)

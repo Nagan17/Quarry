@@ -47,6 +47,9 @@ public:
 	UAnimMontage* GetReloadMontage() const { return ReloadMontage; }
 	float GetCycleTime()  const { return CycleTime; }
 	float GetReloadTime() const { return ReloadTime; }
+	int32 GetCurrentAmmo() const { return MagAmmo; }
+	int32 GetReserveAmmo() const { return ReserveAmmo; }
+	int32 GetMaxCapacity() const { return MagCapacity; }
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

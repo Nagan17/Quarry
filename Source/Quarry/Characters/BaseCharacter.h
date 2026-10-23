@@ -66,6 +66,9 @@ public:
 	
 	virtual TOptional<FVector> GetShotOriginOverride() const { return {}; }
 	
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	virtual void OnAmmoChanged(bool bChambered, int32 MagAmmo, int32 ReserveAmmo);
+	
 	UFUNCTION(BlueprintPure, Category = "Health")
 	bool IsDead() const { return bIsDead; }
 	

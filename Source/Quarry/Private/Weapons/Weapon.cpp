@@ -2,6 +2,8 @@
 
 
 #include "Weapons/Weapon.h"
+
+#include "Characters/PlayerCharacter.h"
 #include "Weapons/Projectile.h"
 
 // Sets default values
