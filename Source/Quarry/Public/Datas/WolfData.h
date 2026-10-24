@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animals/AnimalData.h"
+#include "Materials/MaterialInterface.h"
 #include "WolfData.generated.h"
 
 class UAnimMontage;
@@ -42,6 +43,18 @@ struct FWolfAttack
 
 	UPROPERTY(EditDefaultsOnly, Category = "Attack", meta = (ClampMin = "0"))
 	float Knockback = 200.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FWolfVariant
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Variant")
+	TObjectPtr<UMaterialInterface> BodyMaterial = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Variant")
+	TObjectPtr<UMaterialInterface> FurMaterial = nullptr;
 };
 
 /**
@@ -97,4 +110,8 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Wolf|Circle", meta = (ClampMin = "5", ClampMax = "90"))
 	float CircleStepDegrees = 35.0f;
+	
+	//Appearance
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Appearance")
+	TArray<FWolfVariant> Variants;
 };

@@ -24,7 +24,7 @@ bool AWeapon::TryFire(const FVector& AimPoint, bool bAiming, TOptional<FVector> 
 {
 	if (State != EWeaponState::Ready) return false;
 	
-	if (!bRoundChambered)
+	if (!bRoundChambered || MagAmmo <= 0)
 	{
 		StartCycleOrReload();
 		return false;
@@ -35,6 +35,8 @@ bool AWeapon::TryFire(const FVector& AimPoint, bool bAiming, TOptional<FVector> 
 	: WeaponMesh->GetSocketLocation(MuzzleSocket);
 	
 	SpawnProjectile(Origin, AimPoint, bAiming ? ADSSpreadDeg : HipSpreadDeg);
+	
+	--MagAmmo;
 	bRoundChambered = false;
 	BroadcastAmmo();
 	
@@ -46,7 +48,7 @@ bool AWeapon::TryFire(const FVector& AimPoint, bool bAiming, TOptional<FVector> 
 bool AWeapon::TryReload()
 {
 	if (State != EWeaponState::Ready || ReserveAmmo <= 0) return false;
-	if (MagAmmo >= MagCapacity && bRoundChambered) return false;
+	if (MagAmmo >= MagCapacity) return false;
 	StartFullReload();
 	return true;
 }
@@ -119,10 +121,9 @@ void AWeapon::StartFullReload()
 
 void AWeapon::FinishCycle()
 {
-	--MagAmmo;
 	bRoundChambered = true;
-	SetState(EWeaponState::Ready);
 	BroadcastAmmo();
+	SetState(EWeaponState::Ready);
 }
 
 void AWeapon::FinishReload()
@@ -131,13 +132,10 @@ void AWeapon::FinishReload()
 	MagAmmo += Take;
 	ReserveAmmo -= Take;
 	
-	if (!bRoundChambered && MagAmmo > 0)
-	{
-		--MagAmmo;
-		bRoundChambered = true;
-	}
-	SetState(EWeaponState::Ready);
+	bRoundChambered = MagAmmo > 0;
+
 	BroadcastAmmo();
+	SetState(EWeaponState::Ready);
 }
 
 void AWeapon::SetState(EWeaponState NewState)

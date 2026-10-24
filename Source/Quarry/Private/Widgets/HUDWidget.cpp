@@ -54,6 +54,11 @@ void UHUDWidget::SetAmmo(int32 InMag, int32 MagCapacity, int32 Reserve)
 		const bool bLoaded = i < InMag;
 		RoundImages[i]->SetBrush(MakeBrush(bLoaded ? RoundLoadedTex : RoundEmptyTex, RoundSize));
 		RoundImages[i]->SetColorAndOpacity(bLoaded ? FLinearColor::White : RoundEmptyTint);
+		
+		//if (ShadowImages.IsValidIndex(i) && ShadowImages[i])
+		//{
+		//	ShadowImages[i]->SetVisibility(bLoaded ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+		//}
 	}
 	
 	if (Txt_Reserve)
@@ -73,10 +78,10 @@ void UHUDWidget::SetWeaponLabel(const FText& Label)
 void UHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-	if (StaminaRow)
+	/*if (StaminaRow)
 	{
 		StaminaRow->SetRenderOpacity(0.0f);
-	}
+	}*/
 }
 
 void UHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -98,7 +103,7 @@ void UHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		LagHealth = FMath::FInterpTo(LagHealth, TargetHealth, InDeltaTime, LagInterpSpeed);
 	}
 	
-	if (PB_Health)
+	if (PB_HealthLag)
 	{
 		PB_HealthLag->SetPercent(LagHealth);
 	}
@@ -124,13 +129,13 @@ void UHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		StaminaIdleTimer -= InDeltaTime;
 	}
 	
-	const float TargetOpacity = StaminaIdleTimer > 0.0f ? 1.0f : 0.0f;
+	/*const float TargetOpacity = StaminaIdleTimer > 0.0f ? 1.0f : 0.0f;
 	StaminaOpacity = FMath::FInterpTo(StaminaOpacity, TargetOpacity, InDeltaTime, StaminaFadeSpeed);
 	
 	if (StaminaRow)
 	{
 		StaminaRow->SetRenderOpacity(StaminaOpacity);
-	}
+	}*/
 }
 
 void UHUDWidget::RebuildRounds(int32 Capacity)
@@ -147,15 +152,17 @@ void UHUDWidget::RebuildRounds(int32 Capacity)
 	{
 		UOverlay* Cell = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		
+		UImage* Shadow = nullptr;
 		if (RoundShadowTex)
 		{
-			UImage* Shadow = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+			Shadow = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 			Shadow->SetBrush(MakeBrush(RoundShadowTex, RoundSize * FVector2D(2.f, 1.25f)));
 			Shadow->SetRenderTranslation(FVector2D(1.f, 2.f));
 			UOverlaySlot* S = Cell->AddChildToOverlay(Shadow);
 			S->SetHorizontalAlignment(HAlign_Center);
 			S->SetVerticalAlignment(VAlign_Center);
 		}
+		ShadowImages.Add(Shadow);
 		
 		UImage* Round = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
 		UOverlaySlot* R = Cell->AddChildToOverlay(Round);

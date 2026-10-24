@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animals/BaseAnimal.h"
+#include "Materials/MaterialInterface.h"
 #include "Wolf.generated.h"
 
 /**
@@ -38,12 +39,18 @@ public:
 	
 	virtual void HandleDeath(UHealthComponent* HealthComponent, AController* Contr) override;
 	
+	//Appearance
+	
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
+	UPROPERTY(EditAnywhere, Category = "Wolf|Appearance")
+	int32 ForcedVariant = -1;
+	
 private:
 	void EndAttack();
+	void ApplyRandomVariant();
 	
 	TWeakObjectPtr<AActor> AttackTarget;
 	FTimerHandle AttackHitTimer;

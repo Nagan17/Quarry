@@ -51,6 +51,8 @@ void APlayerCharacter::BeginPlay()
 	
 	ScopeCapture->FOVAngle = ScopedFOV;
 	
+	Stamina = MaxStamina;
+	
 	CreateHUD();
 	UpdateMovementSpeed();
 }
@@ -70,6 +72,7 @@ void APlayerCharacter::Tick(float DeltaSeconds)
 	CameraBoom->SetRelativeLocation(BoomBaseLocation + FVector(0.f, 0.f, CrouchCameraOffset));
 	
 	UpdateADSCamera(DeltaSeconds);
+	UpdateStamina(DeltaSeconds);
 }
 
 void APlayerCharacter::NotifyControllerChanged()
@@ -237,6 +240,9 @@ void APlayerCharacter::HandleDeath(UHealthComponent* HealthComponent, AControlle
 	if (bIsDead) return;
 	
 	Super::HandleDeath(HealthComponent, Contr);
+	
+	bSprintHeld = false;
+	ApplySprintState(false);
 	
 	if (APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
@@ -476,7 +482,7 @@ void APlayerCharacter::CreateHUD()
 	HUDWidget->AddToViewport();
 
 	HUDWidget->SetHealth(HealthComp->GetHealth(), HealthComp->GetMaxHealth());
-	//HUDWidget->SetStamina(Stamina, MaxStamina);
+	HUDWidget->SetStamina(Stamina, MaxStamina);
 	RefreshAmmoHUD();
 }
 
@@ -493,6 +499,82 @@ void APlayerCharacter::HandleHealthChanged(UHealthComponent* HealthComponent, fl
 	if (HUDWidget)
 	{
 		HUDWidget->SetHealth(NewHealth, HealthComp->GetMaxHealth());
+	}
+}
+
+void APlayerCharacter::UpdateStamina(float DeltaTime)
+{
+	if (GetCharacterMovement()->IsMovingOnGround() || !bSprintActive)
+	{
+		ApplySprintState(bSprintHeld && CanSprintNow());
+	}
+
+	if (IsActuallySprinting())
+	{
+		ConsumeStamina(SprintDrainPerSec * DeltaTime);
+		return;
+	}
+
+	if (RegenDelayTimer > 0.f)
+	{
+		RegenDelayTimer -= DeltaTime;
+		return;
+	}
+
+	if (Stamina < MaxStamina)
+	{
+		Stamina = FMath::Min(Stamina + RegenPerSec * DeltaTime, MaxStamina);
+
+		if (bExhausted && Stamina >= MinStaminaToSprint)
+		{
+			bExhausted = false;
+		}
+		PushStaminaToHUD();
+	}
+}
+
+bool APlayerCharacter::CanSprintNow() const
+{
+	if (bIsDead || bExhausted || bIsAiming || bIsCrouched) return false;
+	if (!GetCharacterMovement()->IsMovingOnGround()) return false;
+	return Stamina > 0.f;
+}
+
+bool APlayerCharacter::IsActuallySprinting() const
+{
+	return bSprintActive
+	&& GetCharacterMovement()->IsMovingOnGround()
+	&& GetVelocity().Size2D() > 10.f;
+}
+
+void APlayerCharacter::ConsumeStamina(float Amount)
+{
+	if (Amount <= 0.f) return;
+
+	Stamina = FMath::Max(Stamina - Amount, 0.f);
+	RegenDelayTimer = RegenDelay;
+
+	if (Stamina <= 0.f)
+	{
+		bExhausted = true;
+		RegenDelayTimer = ExhaustedRegenDelay;
+		ApplySprintState(false);
+	}
+	PushStaminaToHUD();
+}
+
+void APlayerCharacter::ApplySprintState(bool bShouldSprint)
+{
+	if (bSprintActive == bShouldSprint) return;
+	bSprintActive = bShouldSprint;
+	SetSprinting(bShouldSprint);
+}
+
+void APlayerCharacter::PushStaminaToHUD()
+{
+	if (HUDWidget)
+	{
+		HUDWidget->SetStamina(Stamina, MaxStamina);
 	}
 }
 
@@ -536,12 +618,13 @@ void APlayerCharacter::ReloadPressed()
 
 void APlayerCharacter::SprintStarted()
 {
-	SetSprinting(true);
+	bSprintHeld = true;
 }
 
 void APlayerCharacter::SprintCompleted()
 {
-	SetSprinting(false);
+	bSprintHeld = false;
+	ApplySprintState(false);
 }
 
 void APlayerCharacter::EquipPressed()
@@ -562,6 +645,12 @@ void APlayerCharacter::JumpPressed()
 	{
 		SetCrouching(false);
 		return;
+	}
+	
+	if (JumpStaminaCost > 0.f)
+	{
+		if (Stamina < JumpStaminaCost || !GetCharacterMovement()->IsMovingOnGround()) return;
+		ConsumeStamina(JumpStaminaCost);
 	}
 	
 	Jump();

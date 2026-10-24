@@ -49,6 +49,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Ammo") TObjectPtr<UTexture2D> RoundLoadedTex;
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Ammo") TObjectPtr<UTexture2D> RoundEmptyTex;
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Ammo") TObjectPtr<UTexture2D> RoundShadowTex;
+	UPROPERTY() TArray<TObjectPtr<UImage>> ShadowImages;
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Ammo") FVector2D RoundSize = FVector2D(10.f, 36.f);
 	UPROPERTY(EditDefaultsOnly, Category = "HUD|Ammo") FLinearColor RoundEmptyTint = FLinearColor(1.f, 1.f, 1.f, 0.7f);
 	

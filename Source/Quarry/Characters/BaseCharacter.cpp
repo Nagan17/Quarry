@@ -166,6 +166,11 @@ void ABaseCharacter::Reload()
 	}
 }
 
+void ABaseCharacter::OnAmmoChanged(bool bChambered, int32 MagAmmo, int32 ReserveAmmo)
+{
+	
+}
+
 // Called when the game starts or when spawned
 void ABaseCharacter::BeginPlay()
 {

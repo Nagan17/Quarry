@@ -91,7 +91,7 @@ protected:
 	TObjectPtr<UAnimMontage> ReloadMontage;
 
 	UPROPERTY(VisibleInstanceOnly, Category="Weapon|Ammo") 
-	bool  bRoundChambered = true;
+	bool bRoundChambered = true;
 	
 	UPROPERTY(VisibleInstanceOnly, Category="Weapon|Ammo") 
 	int32 MagAmmo = 0;

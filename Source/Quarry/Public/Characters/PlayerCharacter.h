@@ -182,6 +182,43 @@ protected:
 
 	virtual void HandleHealthChanged(UHealthComponent* HealthComponent, float NewHealth, float Delta) override;
 	
+	//Stamina
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina", meta = (ClampMin = "1"))
+	float MaxStamina = 100.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina", meta = (ClampMin = "0"))
+	float SprintDrainPerSec = 18.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina", meta = (ClampMin = "0"))
+	float RegenPerSec = 22.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina", meta = (ClampMin = "0"))
+	float RegenDelay = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina", meta = (ClampMin = "0"))
+	float ExhaustedRegenDelay = 2.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina", meta = (ClampMin = "0"))
+	float MinStaminaToSprint = 25.f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Stamina", meta = (ClampMin = "0"))
+	float JumpStaminaCost = 10.f;
+
+	UPROPERTY(VisibleInstanceOnly, Category = "Stamina")
+	float Stamina = 100.f;
+
+	bool bSprintHeld = false;
+	bool bSprintActive = false;
+	bool bExhausted = false;
+	float RegenDelayTimer = 0.f;
+
+	void UpdateStamina(float DeltaTime);
+	bool CanSprintNow() const;
+	bool IsActuallySprinting() const;
+	void ConsumeStamina(float Amount);
+	void ApplySprintState(bool bShouldSprint);
+	void PushStaminaToHUD();
+	
 	//Input Handler
 	void Move(const FInputActionValue& Value);
 	void Look(const FInputActionValue& Value);

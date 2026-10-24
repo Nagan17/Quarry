@@ -6,6 +6,7 @@
 #include "Animals/WolfPackSubsystem.h"
 #include "Components/HealthComponent.h"
 #include "Datas/WolfData.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 AWolf::AWolf()
@@ -172,6 +173,8 @@ void AWolf::BeginPlay()
 		UE_LOG(LogTemp, Warning, TEXT("%s: AnimalData is not a UWolfData asset"), *GetName());
 	}
 	
+	ApplyRandomVariant();
+	
 	if (UWolfPackSubsystem* Pack = GetWorld()->GetSubsystem<UWolfPackSubsystem>())
 	{
 		Pack->RegisterWolf(this);
@@ -197,5 +200,27 @@ void AWolf::EndAttack()
 	{
 		World->GetTimerManager().ClearTimer(AttackHitTimer);
 		World->GetTimerManager().ClearTimer(AttackEndTimer);
+	}
+}
+
+void AWolf::ApplyRandomVariant()
+{
+	const UWolfData* Data = GetWolfData();
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!Data || !MeshComp || Data->Variants.Num() == 0) return;
+	
+	const int32 Index = Data->Variants.IsValidIndex(ForcedVariant)
+	? ForcedVariant
+	: FMath::RandRange(0, Data->Variants.Num() - 1);
+	
+	const FWolfVariant& Variant = Data->Variants[Index];
+
+	if (Variant.BodyMaterial)
+	{
+		MeshComp->SetMaterialByName(TEXT("default"), Variant.BodyMaterial);
+	}
+	if (Variant.FurMaterial)
+	{
+		MeshComp->SetMaterialByName(TEXT("Wolf_Fur"), Variant.FurMaterial);
 	}
 }
